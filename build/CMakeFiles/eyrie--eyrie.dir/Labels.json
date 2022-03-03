@@ -1,0 +1,43 @@
+{
+	"sources" : 
+	[
+		{
+			"file" : "/home/simo/Scrivania/Tesi/Remote_Attestation/build/CMakeFiles/eyrie--eyrie"
+		},
+		{
+			"file" : "/home/simo/Scrivania/Tesi/Remote_Attestation/build/CMakeFiles/eyrie--eyrie.rule"
+		},
+		{
+			"file" : "/home/simo/Scrivania/Tesi/Remote_Attestation/build/CMakeFiles/eyrie--eyrie-complete.rule"
+		},
+		{
+			"file" : "/home/simo/Scrivania/Tesi/Remote_Attestation/build/runtime/src/eyrie--eyrie-stamp/eyrie--eyrie-install.rule"
+		},
+		{
+			"file" : "/home/simo/Scrivania/Tesi/Remote_Attestation/build/runtime/src/eyrie--eyrie-stamp/eyrie--eyrie-mkdir.rule"
+		},
+		{
+			"file" : "/home/simo/Scrivania/Tesi/Remote_Attestation/build/runtime/src/eyrie--eyrie-stamp/eyrie--eyrie-download.rule"
+		},
+		{
+			"file" : "/home/simo/Scrivania/Tesi/Remote_Attestation/build/runtime/src/eyrie--eyrie-stamp/eyrie--eyrie-update.rule"
+		},
+		{
+			"file" : "/home/simo/Scrivania/Tesi/Remote_Attestation/build/runtime/src/eyrie--eyrie-stamp/eyrie--eyrie-patch.rule"
+		},
+		{
+			"file" : "/home/simo/Scrivania/Tesi/Remote_Attestation/build/runtime/src/eyrie--eyrie-stamp/eyrie--eyrie-configure.rule"
+		},
+		{
+			"file" : "/home/simo/Scrivania/Tesi/Remote_Attestation/build/runtime/src/eyrie--eyrie-stamp/eyrie--eyrie-build.rule"
+		}
+	],
+	"target" : 
+	{
+		"labels" : 
+		[
+			"eyrie--eyrie"
+		],
+		"name" : "eyrie--eyrie"
+	}
+}
