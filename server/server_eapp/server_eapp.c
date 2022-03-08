@@ -4,7 +4,7 @@
 #include "malloc.h"
 #include "edge_wrapper.h"
 #include "calculator.h"
-#include "sodium.h"
+#include <sodium.h>
 #include "hacks.h"
 #include "channel.h"
 

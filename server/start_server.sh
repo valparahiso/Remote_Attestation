@@ -2,11 +2,10 @@
 
 set -e
 
-echo -e "This is a quick-start build script for the Keystone Demo, it
-will clone and build all the necessary parts to run the demo
-server/applcation and client on a RISC-V platform (ex: qemu). Please
-ensure you have cloned keystone completely and that you have fully
-built the sdk tests and run them successfully in qemu.
+echo -e "This is a SERVER START build script for the Remote Attestation project, 
+it will clone and build all the necessary parts to run the server/applcation
+on a RISC-V platform (ex: qemu). Please ensure you have cloned keystone completely 
+and that you have fully built the sdk tests and run them successfully in qemu.
 
 You must set KEYSTONE_SDK_DIR to the install directory of Keystone SDK.
 
@@ -15,7 +14,7 @@ You must have the riscv64 gcc on-path as well. (e.g. run
 
 If you have already started building libsodium/etc, it is not
 recommended to use this script."
-read -r -p "Continue? [Y/n] " response
+read -r -p "Continue? [Y/n] " response 
 response=${response,,}
 if [[ "$response" =~ ^(no|n)$ ]]
 then
@@ -26,12 +25,6 @@ fi
 if [[ ! -v KEYSTONE_SDK_DIR ]]
 then
     echo "KEYSTONE_SDK_DIR not set! Please set this to the location where Keystone SDK has been installed."
-    exit 0
-fi
-
-if [[ ! -v SM_HASH ]]
-then
-    echo "SM_HASH is not set! Please follow README to generate the expected hash"
     exit 0
 fi
 
@@ -62,23 +55,7 @@ then
 fi
 export LIBSODIUM_DIR=$(pwd)/libsodium_server/src/libsodium/
 
-# Clone, checkout, and build the client libsodium
-if [ ! -d libsodium_client ]
-then
-  git clone https://github.com/jedisct1/libsodium.git libsodium_client
-  cd libsodium_client
-  git checkout 4917510626c55c1f199ef7383ae164cf96044aea
-  ./configure --host=riscv64-unknown-linux-gnu --disable-ssp --disable-asm --without-pthreads
-  make
-  cd ..
-fi
-export LIBSODIUM_CLIENT_DIR=$(pwd)/libsodium_client/src/libsodium/
-
 cd ..
-
-# Copy the expected hash over
-echo "Copying expected sm hash from riscv-pk, this may be incorrect!"
-cp $SM_HASH include/
 
 # Build the demo
 mkdir -p build

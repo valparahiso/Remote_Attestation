@@ -1,39 +1,46 @@
-# keystone-demo
-Demo host and enclave applications exercising most functionality.
+# Remote Attestation project using Keystone Framework
 
-This demo includes a small enclave server that is capable of remote
-attestation, secure channel creation, and performing a simple
-word-counting computation securely.
+This project includes a small enclave server that is capable of remote
+attestation and secure channel creation (using [libsodium](https://github.com/jedisct1/libsodium)).
 
-Please see documentation in the docs/ directory.
 
-./quick-start.sh will clone/build all necessary components for the
-demo to run in qemu if you have already built keystone and it's sdk
-tests successfully.
-
-The demo will generally work on the master branch of Keystone, but
-will ALWAYS work on the dev branch. We suggest building the dev branch
-of Keystone if you have any issues with the demo on master.
+Inside the client and server folders, the "start_client.sh" and 
+"start_server.sh" files will clone/build all necessary components for the
+project to run in qemu if you have already built [keystone](https://github.com/keystone-enclave/keystone) 
+and it's sdk tests successfully.
 
 # Quick Start
 
-The demo requires the expected hash of the security monitor.
+The client requires the expected hash of the security monitor.
 The hash will be used by the trusted client to verify that the server enclave
 is created and initialized by the known version of the SM.
 
 If you want to skip this verification, you can pass in `--ignore-valid` flag
-to the client.
+to the client. 
 
-Please see the security monitor's documentation to see how to generate a hash.
+Please see the [security monitor](https://github.com/keystone-enclave/sm)'s documentation to see how to generate a hash.
 
-Once you generated the `sm_expected_hash.h`, try:
+In order to configure correctly the paths of libsodium try, in both client and server folders:
 
 ```
-SM_HASH=<path/to/sm_expected_hash.h> ./quick-start.sh
+source source.sh
 ```
+
+Then, once you generated the `sm_expected_hash.h`, try: 
+
+```
+SM_HASH=<path/to/sm_expected_hash.h> ./start_client.sh
+```
+into the client folder, and:
+
+```
+./start_server.sh
+```
+
+into the server folder.
 
 You should be able to see the server enclave package `demo-server.ke` and the
-trusted client `trusted_client.riscv` under `build` directory.
+trusted client `trusted_client.riscv` under `build` directory into the respective folders.
 
 Copy these files into the machine, and run the server enclave.
 Then, connect to the server using the client.
@@ -45,7 +52,7 @@ Then, connect to the server using the client.
 
 ```
 # on the client side
-./trusted_client.riscv
+./trusted_client.riscv server_address
 ```
 
 The client will connect to the enclave and perform the remote attestation.
