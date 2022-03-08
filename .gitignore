@@ -350,7 +350,7 @@ MigrationBackup/
 .ionide/
 
 #Added by dev
-./server/build/
-./client/build/
-./server/libsodium_builds
-./client/libsodium_builds
+server/build/
+client/build/
+server/libsodium_builds/
+client/libsodium_builds/
