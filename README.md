@@ -20,7 +20,13 @@ to the client.
 
 Please see the [security monitor](https://github.com/keystone-enclave/sm)'s documentation to see how to generate a hash.
 
-Once you generated the `sm_expected_hash.h`, try:
+In order to configure correctly the paths of libsodium try, in both client and server folders:
+
+```
+source source.sh
+```
+
+Then, once you generated the `sm_expected_hash.h`, try: 
 
 ```
 SM_HASH=<path/to/sm_expected_hash.h> ./start_client.sh

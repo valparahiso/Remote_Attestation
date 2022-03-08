@@ -2,11 +2,10 @@
 
 set -e
 
-echo -e "This is a SERVER START build script for the Keystone Demo, it
-will clone and build all the necessary parts to run the demo
-server/applcation and client on a RISC-V platform (ex: qemu). Please
-ensure you have cloned keystone completely and that you have fully
-built the sdk tests and run them successfully in qemu.
+echo -e "This is a SERVER START build script for the Remote Attestation project, 
+it will clone and build all the necessary parts to run the server/applcation
+on a RISC-V platform (ex: qemu). Please ensure you have cloned keystone completely 
+and that you have fully built the sdk tests and run them successfully in qemu.
 
 You must set KEYSTONE_SDK_DIR to the install directory of Keystone SDK.
 
@@ -15,7 +14,7 @@ You must have the riscv64 gcc on-path as well. (e.g. run
 
 If you have already started building libsodium/etc, it is not
 recommended to use this script."
-read -r -p "Continue? [Y/n] " response
+read -r -p "Continue? [Y/n] " response 
 response=${response,,}
 if [[ "$response" =~ ^(no|n)$ ]]
 then
