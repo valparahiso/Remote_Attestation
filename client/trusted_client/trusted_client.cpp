@@ -15,6 +15,24 @@ unsigned char tx[crypto_kx_SESSIONKEYBYTES];
 int double_fault;
 int channel_ready;
 
+/*void open_db(){
+  sqlite3 *db;
+  char *zErrMsg = 0;
+  int rc;
+
+  rc = sqlite3_open("./db/gvalues.db", &db); 
+
+  if( rc ) {
+    fprintf(stderr, "[TC]Can't open database: %s\n", sqlite3_errmsg(db));
+    send_exit_message();
+    exit(0);
+  } else {
+    fprintf(stderr, "Opened database successfully\n");
+  }
+  //sqlite3_close(db);  
+
+}*/
+
 void trusted_client_exit(){
   if(double_fault || !channel_ready){
     printf("DC: Fatal error, exiting. Remote not cleanly shut down.\n");
@@ -52,6 +70,24 @@ void trusted_client_get_report(void* buffer, int ignore_valid){
   Report report;
   report.fromBytes((unsigned char*)buffer);
   report.printPretty();
+
+  //printf(report.stringfy().c_str());
+
+  report.checkSignaturesOnly(_sanctum_dev_public_key);
+  //Qua dovrò cambiare e fare un chek per ciascun record del DB.
+
+  /*
+  1. Arrivato il report verifico la pub dev key e identifico il server (se presente nel DB)
+  2. Trovato il server, uso la sua pub key per accedere ai Gvalues
+  3. Verifico nonce + Gvalues
+  */
+ 
+  
+
+  //before verifying report check if it is in DBattestors
+  //maybe trying check signatures only for every record in DB (?)
+  
+  
 
   if (report.verify(enclave_expected_hash,
   		    sm_expected_hash,

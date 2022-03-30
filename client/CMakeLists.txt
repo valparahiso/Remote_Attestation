@@ -53,9 +53,3 @@ target_link_libraries(trusted_client.riscv
   ${KEYSTONE_LIB_VERIFIER}
   ${LIBSODIUM_CLIENT_DIR}/.libs/libsodium.a)
 
-#[[set(eyrie_files_to_copy eyrie-rt)
-add_eyrie_runtime(${eapp_bin}-eyrie
-  "v1.0.0"
-  ${eyrie_plugins}
-  ${eyrie_files_to_copy})]]
-

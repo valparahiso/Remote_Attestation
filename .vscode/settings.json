@@ -1,0 +1,7 @@
+{
+    "files.associations": {
+        "*.tcc": "cpp",
+        "sodium.h": "c"
+    },
+    "cmake.sourceDirectory": "${workspaceFolder}/client"
+}
