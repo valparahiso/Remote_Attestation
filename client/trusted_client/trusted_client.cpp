@@ -20,7 +20,8 @@ int channel_ready;
   char *zErrMsg = 0;
   int rc;
 
-  rc = sqlite3_open("./db/gvalues.db", &db); 
+  rc = sqlite3_open("prova", &db);
+  
 
   if( rc ) {
     fprintf(stderr, "[TC]Can't open database: %s\n", sqlite3_errmsg(db));
@@ -29,9 +30,10 @@ int channel_ready;
   } else {
     fprintf(stderr, "Opened database successfully\n");
   }
-  //sqlite3_close(db);  
+  sqlite3_close(db);  
 
 }*/
+
 
 void trusted_client_exit(){
   if(double_fault || !channel_ready){
@@ -69,12 +71,28 @@ void trusted_client_get_report(void* buffer, int ignore_valid){
 
   Report report;
   report.fromBytes((unsigned char*)buffer);
+
+  printf("\n\t\t\t***** REPORT RECEIVED: ******\n");
   report.printPretty();
 
-  //printf(report.stringfy().c_str());
+  printf("\n\t\t\t***** HASH EXPECTED: ******\n");
+
+  printf("\t\t=== Security Monitor ===\n");
+  for(int q=0; q<sm_expected_hash_len; q++)
+    printf("%02x", sm_expected_hash[q]);
+
+  printf("\n\t\t=== Enclave Application ===\n");
+  for(int q=0; q<enclave_expected_hash_len; q++)
+    printf("%02x", enclave_expected_hash[q]);
+  
+  printf("\n\t\t-- Device Pubkey --\n");
+  for(int q=0; q<32; q++)
+    printf("%02x", _sanctum_dev_public_key[q]); 
+
+  printf("\n");
 
   report.checkSignaturesOnly(_sanctum_dev_public_key);
-  //Qua dovrò cambiare e fare un chek per ciascun record del DB.
+  //Qua dovrò cambiare e fare un check per ciascun record del DB.
 
   /*
   1. Arrivato il report verifico la pub dev key e identifico il server (se presente nel DB)

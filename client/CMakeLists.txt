@@ -37,6 +37,8 @@ set(KEYSTONE_LIB_HOST ${KEYSTONE_SDK_DIR}/lib/libkeystone-host.a)
 set(KEYSTONE_LIB_EDGE ${KEYSTONE_SDK_DIR}/lib/libkeystone-edge.a)
 set(KEYSTONE_LIB_VERIFIER ${KEYSTONE_SDK_DIR}/lib/libkeystone-verifier.a)
 set(KEYSTONE_LIB_EAPP ${KEYSTONE_SDK_DIR}/lib/libkeystone-eapp.a)
+set(CMAKE_THREAD_PREFER_PTHREAD TRUE)
+set(THREADS_PREFER_PTHREAD_FLAG TRUE)
 
 # find program "makeself"
 find_program(MAKESELF makeself)
@@ -52,4 +54,12 @@ add_executable(trusted_client.riscv
 target_link_libraries(trusted_client.riscv
   ${KEYSTONE_LIB_VERIFIER}
   ${LIBSODIUM_CLIENT_DIR}/.libs/libsodium.a)
+
+
+#find_package(Threads REQUIRED)
+
+#target_link_libraries(trusted_client.riscv Threads::Threads)
+
+#find_package(SQLite3 REQUIRED CONFIG) 
+#target_link_libraries(trusted_client.riscv SQLite::SQLite3)
 
