@@ -40,7 +40,7 @@ then
     exit 0
 fi
 
-DEMO_DIR=$(pwd)
+DEMO_DIR=$(pwd) 
 
 set -e
 

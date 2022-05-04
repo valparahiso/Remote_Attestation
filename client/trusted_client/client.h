@@ -1,5 +1,6 @@
 #ifndef _CLIENT_H_
 #define _CLIENT_H_
+#include "trusted_client.h"
 
 void send_buffer(byte* buffer, size_t len);
 byte* recv_buffer(size_t* len);
