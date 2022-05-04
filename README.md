@@ -41,7 +41,7 @@ make
 into the client folder.
 
 You should be able to see the server enclave package `demo-server.ke` and the
-trusted client `trusted_client.8086` under `build` directory into the respective folders.
+trusted client `trusted_client.x86` under `build` directory into the respective folders.
 
 Copy these files into the machine, and run the server enclave.
 Then, connect to the server using the client.
