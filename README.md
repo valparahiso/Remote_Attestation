@@ -35,7 +35,8 @@ into the server folder
 and 
 
 ```
-./trusted_client/make
+cd trusted_client
+make
 ```
 into the client folder.
 
