@@ -60,6 +60,11 @@ int Base64Decode(char *b64message, char **buffer)
 
 static int check_attestor_callback(void *report, int count, char **data, char **columns)
 {
+  if (count == 0)
+  {
+    return 0;
+  }
+
   char *res;
   Report *received_report = reinterpret_cast<Report *>(report);
   Base64Decode(data[0], &res);
@@ -79,7 +84,6 @@ void check_attestor(Report report)
   char *zErrMsg = 0;
   int rc;
   char *sql;
-  const char *data = "Callback function called";
   attestor_valid = false;
 
   /* Open database */
@@ -89,10 +93,6 @@ void check_attestor(Report report)
   {
     fprintf(stderr, "Can't open database: %s\n", sqlite3_errmsg(db));
     return;
-  }
-  else
-  {
-    fprintf(stderr, "Opened database successfully\n");
   }
 
   /* Create SQL statement */
@@ -106,15 +106,12 @@ void check_attestor(Report report)
     fprintf(stderr, "SQL error: %s\n", zErrMsg);
     sqlite3_free(zErrMsg);
   }
-  else
-  {
-    fprintf(stdout, "Operation done successfully\n");
-  }
+
   sqlite3_close(db);
   return;
 }
 
-static int select_attestor_callback(void *report, int count, char **data, char **columns)
+static int select_gvalues_callback(void *report, int count, char **data, char **columns)
 {
   unsigned char *sm_hash;
   unsigned char *enclave_hash;
@@ -145,13 +142,12 @@ static int select_attestor_callback(void *report, int count, char **data, char *
   return 0;
 }
 
-void select_attestor(Report report)
+void select_gvalues(Report report)
 {
   sqlite3 *db;
   char *zErrMsg = 0;
   int rc;
-  char sql[64];
-  const char *data = "Callback function called";
+  char sql[256];
 
   /* Open database */
   rc = sqlite3_open("../db/gvalues.db", &db);
@@ -161,26 +157,20 @@ void select_attestor(Report report)
     fprintf(stderr, "Can't open database: %s\n", sqlite3_errmsg(db));
     return;
   }
-  else
-  {
-    fprintf(stderr, "Opened database successfully\n");
-  }
 
   /* Create SQL statement */
-  sprintf(sql, "SELECT * from attestors WHERE id=%d", attestor_id);
+
+  sprintf(sql, "SELECT COUNT(*), G.enclave_hash, G.sm_hash, A.pubkey FROM gvalues AS G, attestors AS A WHERE G.attestor=A.id AND G.attestor=%d", attestor_id);
 
   /* Execute SQL statement */
-  rc = sqlite3_exec(db, sql, select_attestor_callback, &report, NULL);
+  rc = sqlite3_exec(db, sql, select_gvalues_callback, &report, NULL);
 
   if (rc != SQLITE_OK)
   {
     fprintf(stderr, "SQL error: %s\n", zErrMsg);
     sqlite3_free(zErrMsg);
   }
-  else
-  {
-    fprintf(stdout, "Operation done successfully\n");
-  }
+
   sqlite3_close(db);
   return;
 }
@@ -241,26 +231,7 @@ void trusted_client_get_report(void *buffer, int ignore_valid)
   printf("[TC] Server public key is in the whitelist, proceeding validating report\n");
   attestor_valid = false;
 
-  /*printf("\n\t\t\t***** REPORT RECEIVED: ******\n");
-  report.printPretty();
-
-  printf("\n\t\t\t***** HASH EXPECTED: ******\n");
-
-  printf("\t\t=== Security Monitor ===\n");
-  for (int q = 0; q < sm_expected_hash_len; q++)
-    printf("%02x", sm_expected_hash[q]);
-
-  printf("\n\t\t=== Enclave Application ===\n");
-  for (int q = 0; q < enclave_expected_hash_len; q++)
-    printf("%02x", enclave_expected_hash[q]);
-
-  printf("\n\t\t-- Device Pubkey --\n");
-  for (int q = 0; q < 32; q++)
-    printf("%02x", _sanctum_dev_public_key[q]);
-
-  printf("\n");*/
-
-  select_attestor(report);
+  select_gvalues(report);
 
   if (report_valid)
   {
