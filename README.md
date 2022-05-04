@@ -53,7 +53,7 @@ Then, connect to the server using the client.
 
 ```
 # on the client side
-./trusted_client.8086 server_address
+./trusted_client.x86 server_address
 ```
 
 The client will connect to the enclave and perform the remote attestation.
