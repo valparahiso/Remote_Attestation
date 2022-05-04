@@ -89,7 +89,7 @@ int main(int argc, char *argv[])
   
   size_t report_size;
   byte* report_buffer = recv_buffer(&report_size);
-  trusted_client_get_report(report_buffer, ignore_valid);
+  trusted_client_get_report(report_buffer);
   free(report_buffer);
 
   /* Send pubkey */
