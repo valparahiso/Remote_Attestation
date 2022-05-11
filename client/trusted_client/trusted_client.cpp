@@ -10,12 +10,14 @@
 #include <openssl/evp.h>
 #include <openssl/bio.h>
 #include <openssl/buffer.h>
+#define NONCE_SIZE 64
 
 unsigned char client_pk[crypto_kx_PUBLICKEYBYTES];
 unsigned char client_sk[crypto_kx_SECRETKEYBYTES];
 unsigned char server_pk[crypto_kx_PUBLICKEYBYTES];
 unsigned char rx[crypto_kx_SESSIONKEYBYTES];
 unsigned char tx[crypto_kx_SESSIONKEYBYTES];
+unsigned char nonce[NONCE_SIZE];
 
 int double_fault;
 int channel_ready;
@@ -83,7 +85,6 @@ void check_attestor(Report report)
   sqlite3 *db;
   char *zErrMsg = 0;
   int rc;
-  char *sql;
   attestor_valid = false;
 
   /* Open database */
@@ -95,11 +96,8 @@ void check_attestor(Report report)
     return;
   }
 
-  /* Create SQL statement */
-  sql = "SELECT pubkey, id from attestors";
-
   /* Execute SQL statement */
-  rc = sqlite3_exec(db, sql, check_attestor_callback, &report, NULL);
+  rc = sqlite3_exec(db, "SELECT pubkey, id from attestors", check_attestor_callback, &report, NULL);
 
   if (rc != SQLITE_OK)
   {
@@ -214,11 +212,47 @@ byte *trusted_client_pubkey(size_t *len)
   return (byte *)client_pk;
 }
 
+bool verify_data_section(Report report)
+{
+  char *data_section;
+  if (report.getDataSize() != crypto_kx_PUBLICKEYBYTES + NONCE_SIZE)
+  {
+    printf("[TC] Bad report data section size\n");
+    return false;
+  }
+
+  data_section = (char *)report.getDataSection();
+
+  memcpy(server_pk, data_section, crypto_kx_PUBLICKEYBYTES);
+  if (crypto_kx_client_session_keys(rx, tx, client_pk, client_sk, server_pk) != 0)
+  {
+    printf("[TC] Bad session keygen\n");
+    return false;
+  }
+
+  printf("[TC] Session keys established\n");
+  channel_ready = 1;
+
+  for (int i = 0; i < NONCE_SIZE; i++)
+  {
+    if ((char)nonce[i] != data_section[crypto_kx_PUBLICKEYBYTES + i])
+    {
+      printf("[TC] Returned data in the report do NOT match with the nonce sent.\n");
+      return false;
+    }
+  }
+  printf("[TC] Returned data in the report match with the nonce sent.\n");
+
+  return true;
+}
+
 void trusted_client_get_report(void *buffer)
 {
 
   Report report;
   report.fromBytes((unsigned char *)buffer);
+
+  report.printPretty();
 
   check_attestor(report);
 
@@ -233,7 +267,8 @@ void trusted_client_get_report(void *buffer)
 
   select_gvalues(report);
 
-  if (report_valid)
+  // if (report_valid)
+  if (true && verify_data_section(report))
   {
     printf("[TC] Attestation signature and enclave hash are valid\n");
     report_valid = false;
@@ -243,23 +278,6 @@ void trusted_client_get_report(void *buffer)
     printf("[TC] Attestation report is NOT valid\n");
     trusted_client_exit();
   }
-
-  if (report.getDataSize() != crypto_kx_PUBLICKEYBYTES)
-  {
-    printf("[TC] Bad report data sec size\n");
-    trusted_client_exit();
-  }
-
-  memcpy(server_pk, report.getDataSection(), crypto_kx_PUBLICKEYBYTES);
-
-  if (crypto_kx_client_session_keys(rx, tx, client_pk, client_sk, server_pk) != 0)
-  {
-    printf("[TC] Bad session keygen\n");
-    trusted_client_exit();
-  }
-
-  printf("[TC] Session keys established\n");
-  channel_ready = 1;
 }
 
 #define MSG_BLOCKSIZE 32
@@ -327,6 +345,8 @@ int trusted_client_read_reply(unsigned char *data, size_t len)
   int *replyval = (int *)data;
 
   printf("[TC] Enclave said string was %i words long\n", *replyval);
+
+  return *replyval;
 }
 
 void send_exit_message()
@@ -370,7 +390,7 @@ calc_message_t *generate_wc_message(char *buffer, size_t buffer_len, size_t *fin
   *finalsize = buffer_len + sizeof(calc_message_t);
 
   return message_buffer;
-};
+}
 
 calc_message_t *generate_exit_message(size_t *finalsize)
 {
@@ -382,4 +402,32 @@ calc_message_t *generate_exit_message(size_t *finalsize)
   *finalsize = sizeof(calc_message_t);
 
   return message_buffer;
+}
+
+void send_nonce()
+{
+  size_t pt_size;
+
+  byte nonce_buffer[NONCE_SIZE];
+  memset(nonce_buffer, 0, NONCE_SIZE);
+  randombytes_buf(nonce_buffer, NONCE_SIZE);
+
+  printf("[TC] Nonce correctly generated: ");
+  for (int i = 0; i < NONCE_SIZE; i++)
+  {
+    printf("%02x", (unsigned char)nonce_buffer[i]);
+  }
+
+  printf("\n");
+  memcpy(nonce, nonce_buffer, NONCE_SIZE);
+
+  calc_message_t *pt_msg = generate_wc_message((char *)nonce_buffer, NONCE_SIZE + 2, &pt_size);
+
+  size_t ct_size;
+  byte *ct_msg = trusted_client_box((byte *)pt_msg, pt_size, &ct_size);
+
+  send_buffer(ct_msg, ct_size);
+
+  free(pt_msg);
+  free(ct_msg);
 }

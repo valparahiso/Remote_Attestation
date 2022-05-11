@@ -4,6 +4,7 @@
 
 #define CALC_MSG_WORDCOUNT 1
 #define CALC_MSG_EXIT 2
+#define CALC_MSG_NONCE 3
 
 typedef struct calc_message_t{
   unsigned short msg_type;
