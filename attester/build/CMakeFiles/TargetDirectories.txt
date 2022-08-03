@@ -1,9 +1,0 @@
-/home/simo/Scrivania/Tesi/Remote_Attestation/attester/build/CMakeFiles/edit_cache.dir
-/home/simo/Scrivania/Tesi/Remote_Attestation/attester/build/CMakeFiles/rebuild_cache.dir
-/home/simo/Scrivania/Tesi/Remote_Attestation/attester/build/CMakeFiles/package.dir
-/home/simo/Scrivania/Tesi/Remote_Attestation/attester/build/CMakeFiles/-eyrie.dir
-/home/simo/Scrivania/Tesi/Remote_Attestation/attester/build/CMakeFiles/eyrie--eyrie.dir
-/home/simo/Scrivania/Tesi/Remote_Attestation/attester/build/CMakeFiles/demo-server.riscv.dir
-/home/simo/Scrivania/Tesi/Remote_Attestation/attester/build/server_eapp/CMakeFiles/rebuild_cache.dir
-/home/simo/Scrivania/Tesi/Remote_Attestation/attester/build/server_eapp/CMakeFiles/edit_cache.dir
-/home/simo/Scrivania/Tesi/Remote_Attestation/attester/build/server_eapp/CMakeFiles/server_eapp.eapp_riscv.dir
