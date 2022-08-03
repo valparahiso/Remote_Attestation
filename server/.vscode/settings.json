@@ -6,6 +6,7 @@
         "string.h": "c",
         "calculator.h": "c",
         "hacks.h": "c",
-        "channel.h": "c"
+        "channel.h": "c",
+        "*.tcc": "cpp"
     }
 }

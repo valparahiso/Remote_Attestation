@@ -127,7 +127,7 @@ static int select_gvalues_callback(void *report, int count, char **data, char **
     }
     else if (!strcmp(columns[idx], "enclave_hash"))
     {
-      enclave_hash = (unsigned char *)res;
+      enclave_hash = (unsigned char *)res; 
     }
     else if (!strcmp(columns[idx], "pubkey"))
     {
@@ -250,7 +250,7 @@ void trusted_client_get_report(void *buffer)
 {
 
   Report report;
-  report.fromBytes((unsigned char *)buffer);
+  report.fromBytes((unsigned char *)buffer); 
 
   report.printPretty();
 
@@ -267,8 +267,7 @@ void trusted_client_get_report(void *buffer)
 
   select_gvalues(report);
 
-  // if (report_valid)
-  if (true && verify_data_section(report))
+  if (report_valid && verify_data_section(report))
   {
     printf("[TC] Attestation signature and enclave hash are valid\n");
     report_valid = false;
