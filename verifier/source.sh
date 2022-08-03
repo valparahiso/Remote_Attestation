@@ -1,3 +1,3 @@
 #!/bin/bash
 
-export LIBSODIUM_CLIENT_DIR=$(pwd)/libsodium_builds/libsodium_client/src/libsodium
+export LIBSODIUM_verifier_DIR=$(pwd)/libsodium_builds/libsodium_verifier/src/libsodium

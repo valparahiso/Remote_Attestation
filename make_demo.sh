@@ -2,7 +2,8 @@
 
 
 echo "1. Compilo il verifier"
-cd verifier/trusted_client
+mkdir -p verifier/build
+cd verifier/trusted_verifier
 make
 
 
