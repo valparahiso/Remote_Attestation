@@ -2,8 +2,8 @@
 
 set -e
 
-echo -e "This is a SERVER START build script for the Remote Attestation project, 
-it will clone and build all the necessary parts to run the server/applcation
+echo -e "This is a attester START build script for the Remote Attestation project, 
+it will clone and build all the necessary parts to run the attester/applcation
 on a RISC-V platform (ex: qemu). Please ensure you have cloned keystone completely 
 and that you have fully built the sdk tests and run them successfully in qemu.
 
@@ -41,11 +41,11 @@ set -e
 mkdir -p libsodium_builds
 cd libsodium_builds
 
-# Clone, checkout, and build the server libsodium
-if [ ! -d libsodium_server ]
+# Clone, checkout, and build the attester libsodium
+if [ ! -d libsodium_attester ]
 then
-  git clone https://github.com/jedisct1/libsodium.git libsodium_server
-  cd libsodium_server
+  git clone https://github.com/jedisct1/libsodium.git libsodium_attester
+  cd libsodium_attester
   git checkout 4917510626c55c1f199ef7383ae164cf96044aea
   patch -p1 < $DEMO_DIR/sodium_patches/configure.ac.patch
   ./autogen.sh
@@ -53,7 +53,7 @@ then
   make
   cd ..
 fi
-export LIBSODIUM_DIR=$(pwd)/libsodium_server/src/libsodium/
+export LIBSODIUM_DIR=$(pwd)/libsodium_attester/src/libsodium/
 
 cd ..
 

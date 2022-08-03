@@ -22,7 +22,7 @@ char *read_nonce()
   if (channel_recv((unsigned char *)calc_nonce, nonce.size, &nonce_len) != 0)
   {
     free(calc_nonce);
-    ocall_print_buffer("Shutting down server...");
+    ocall_print_buffer("Shutting down attester...");
     EAPP_RETURN(1);
   }
 
@@ -43,7 +43,7 @@ void attest_and_establish_channel()
   nonce = read_nonce();
 
   for (int i = 0; i < crypto_kx_PUBLICKEYBYTES; i++)
-    data_section[i] = server_pk[i];
+    data_section[i] = attester_pk[i];
 
   for (int i = 0; i < NONCE_SIZE; i++)
     data_section[i + crypto_kx_PUBLICKEYBYTES] = nonce[i];

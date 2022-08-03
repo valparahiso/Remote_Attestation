@@ -18,7 +18,7 @@
 #define PRINT_MESSAGE_BUFFERS 1
 
 /* We hardcode these for demo purposes. */
-const char* enc_path = "server_eapp.eapp_riscv";
+const char* enc_path = "attester_eapp.eapp_riscv";
 const char* runtime_path = "eyrie-rt";
 
 #define PORTNUM 8067
@@ -120,18 +120,18 @@ void send_report(void* buffer, size_t len)
 void init_network_wait(){
 
   int fd_sock;
-  struct sockaddr_in server_addr;
+  struct sockaddr_in attester_addr;
 
   fd_sock = socket(AF_INET, SOCK_STREAM, 0);
   if (fd_sock < 0){
     printf("Failed to open socket\n");
     exit(-1);
   }
-  memset(&server_addr, 0, sizeof(server_addr));
-  server_addr.sin_family = AF_INET;
-  server_addr.sin_addr.s_addr = INADDR_ANY;
-  server_addr.sin_port = htons(PORTNUM);
-  if( bind(fd_sock, (struct sockaddr*)&server_addr, sizeof(server_addr)) < 0){
+  memset(&attester_addr, 0, sizeof(attester_addr));
+  attester_addr.sin_family = AF_INET;
+  attester_addr.sin_addr.s_addr = INADDR_ANY;
+  attester_addr.sin_port = htons(PORTNUM);
+  if( bind(fd_sock, (struct sockaddr*)&attester_addr, sizeof(attester_addr)) < 0){
     printf("Failed to bind socket\n");
     exit(-1);
   }
