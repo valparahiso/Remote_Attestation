@@ -32,5 +32,4 @@ void send_reply(void* message, size_t len);
 void wait_for_client_pubkey_wrapper(void* buffer);
 void* wait_for_client_pubkey();
 
-
 #endif /* _EDGE_WRAPPER_H_ */

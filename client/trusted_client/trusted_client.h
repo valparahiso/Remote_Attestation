@@ -17,10 +17,12 @@ typedef unsigned char byte;
 void trusted_client_exit();
 void trusted_client_init();
 byte* trusted_client_pubkey(size_t* len);
-void trusted_client_get_report(void* buffer, int ignore_valid);
+void trusted_client_get_report(void* buffer);
 int trusted_client_read_reply(unsigned char* data, size_t len);
 void send_exit_message();
 void send_wc_message(char* buffer);
+void send_nonce();
+char* generate_nonce();
 calc_message_t* generate_wc_message(char* buffer, size_t buffer_len, size_t* finalsize);
 calc_message_t* generate_exit_message(size_t* finalsize);
 

@@ -30,13 +30,17 @@ include_directories(include
   ${KEYSTONE_SDK_DIR}/include
   ${KEYSTONE_SDK_DIR}/include/host
   ${KEYSTONE_SDK_DIR}/include/edge
-  ${KEYSTONE_SDK_DIR}/include/verifier)
+  ${KEYSTONE_SDK_DIR}/include/verifier
+  /usr/local/lib)
 
 # set paths to the libraries
 set(KEYSTONE_LIB_HOST ${KEYSTONE_SDK_DIR}/lib/libkeystone-host.a)
 set(KEYSTONE_LIB_EDGE ${KEYSTONE_SDK_DIR}/lib/libkeystone-edge.a)
 set(KEYSTONE_LIB_VERIFIER ${KEYSTONE_SDK_DIR}/lib/libkeystone-verifier.a)
 set(KEYSTONE_LIB_EAPP ${KEYSTONE_SDK_DIR}/lib/libkeystone-eapp.a)
+set(CMAKE_THREAD_PREFER_PTHREAD TRUE)
+set(THREADS_PREFER_PTHREAD_FLAG TRUE)
+set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
 
 # find program "makeself"
 find_program(MAKESELF makeself)
@@ -49,13 +53,17 @@ add_executable(trusted_client.riscv
   include/sm_expected_hash.h
 )
 
+find_package(Sqlite3 REQUIRED)
+include_directories(${SQLITE3_INCLUDE_DIRS})
 target_link_libraries(trusted_client.riscv
   ${KEYSTONE_LIB_VERIFIER}
-  ${LIBSODIUM_CLIENT_DIR}/.libs/libsodium.a)
+  ${LIBSODIUM_CLIENT_DIR}/.libs/libsodium.a
+  ${SQLITE3_LIBRARIES})
 
-#[[set(eyrie_files_to_copy eyrie-rt)
-add_eyrie_runtime(${eapp_bin}-eyrie
-  "v1.0.0"
-  ${eyrie_plugins}
-  ${eyrie_files_to_copy})]]
 
+#find_package(Threads REQUIRED)
+
+#target_link_libraries(trusted_client.riscv Threads::Threads)
+
+#find_package(SQLite3 REQUIRED CONFIG) 
+#target_link_libraries(trusted_client.riscv SQLite::SQLite3)

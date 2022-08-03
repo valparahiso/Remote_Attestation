@@ -61,6 +61,15 @@ void print_hex_data(unsigned char* data, size_t len){
 
 unsigned long print_buffer(char* str){
   printf("[SE] %s",str);
+
+
+  printf("\n********HEX*********\n");
+  for(int i=0; i<strlen(str); i++)
+  {
+    printf("%02x", (unsigned char) str[i]);
+  }
+
+  printf("\n\n\n");
   return strlen(str);
 }
 
@@ -79,7 +88,11 @@ void send_reply(void* data, size_t len){
 
 void* wait_for_client_pubkey(){
   size_t len;
-  return recv_buffer(&len);
+  byte* pubkey_client = recv_buffer(&len);
+
+  printf("[EH] Received client public key: %s\n", pubkey_client);
+  
+  return pubkey_client;
 }
 
 encl_message_t wait_for_message(){
@@ -94,7 +107,7 @@ encl_message_t wait_for_message(){
   /* This happens here */
   encl_message_t message;
   message.host_ptr = buffer;
-  message.len = len;
+  message.len = len; 
   return message;
 }
 
