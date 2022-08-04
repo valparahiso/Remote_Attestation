@@ -354,3 +354,5 @@ attester/build/
 verifier/build/ 
 attester/libsodium_builds/
 verifier/libsodium_builds/
+attester/wolfssl/
+verifier/wolfssl/ 
