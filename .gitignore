@@ -358,3 +358,4 @@ attester/wolfssl/
 verifier/wolfssl/ 
 verifier/keystone_build/
 verifier/trusted_verifier/certs/
+attester/certs/
