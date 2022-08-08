@@ -350,7 +350,12 @@ MigrationBackup/
 .ionide/
 
 #Added by dev
-server/build/
-client/build/
-server/libsodium_builds/
-client/libsodium_builds/
+attester/build/
+verifier/build/ 
+attester/libsodium_builds/
+verifier/libsodium_builds/
+attester/wolfssl/
+verifier/wolfssl/ 
+verifier/keystone_build/
+verifier/trusted_verifier/certs/
+attester/certs/

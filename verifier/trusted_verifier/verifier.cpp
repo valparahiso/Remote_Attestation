@@ -7,8 +7,8 @@
 #include <netinet/in.h>
 #include <netdb.h>
 #include <unistd.h>
-#include "trusted_client.h"
-#include "client.h"
+#include "trusted_verifier.h"
+#include "verifier.h"
 
 #define PORTNUM 8067
 int fd_sock;
@@ -31,7 +31,7 @@ byte *recv_buffer(size_t *len)
   {
     // Shutdown
     printf("[TC] Invalid message header\n");
-    trusted_client_exit();
+    trusted_verifier_exit();
   }
   size_t reply_size = *(size_t *)local_buffer;
   byte *reply = (byte *)malloc(reply_size);
@@ -39,14 +39,14 @@ byte *recv_buffer(size_t *len)
   {
     // Shutdown
     printf("[TC] Message too large\n");
-    trusted_client_exit();
+    trusted_verifier_exit();
   }
   n_read = read(fd_sock, reply, reply_size);
   if ((size_t) n_read != reply_size)
   {
     printf("[TC] Bad message size\n");
     // Shutdown
-    trusted_client_exit();
+    trusted_verifier_exit();
   }
 
   *len = reply_size;
@@ -85,11 +85,11 @@ int main(int argc, char *argv[])
   printf("[TC] Connected to enclave host!\n");
 
   /* Establish channel */
-  trusted_client_init();
+  trusted_verifier_init();
 
   /* Send pubkey */
   size_t pubkey_size;
-  byte *pubkey = trusted_client_pubkey(&pubkey_size);
+  byte *pubkey = trusted_verifier_pubkey(&pubkey_size);
   send_buffer(pubkey, pubkey_size);
 
   /* Send nonce to avoid reply attacks TODO HERE*/
@@ -97,7 +97,7 @@ int main(int argc, char *argv[])
 
   size_t report_size;
   byte *report_buffer = recv_buffer(&report_size);
-  trusted_client_get_report(report_buffer);
+  trusted_verifier_get_report(report_buffer);
   free(report_buffer);
 
   /* Send/recv messages */
@@ -121,7 +121,7 @@ int main(int argc, char *argv[])
       send_wc_message((char *)local_buffer);
       size_t reply_size;
       byte *reply = recv_buffer(&reply_size);
-      trusted_client_read_reply(reply, reply_size);
+      trusted_verifier_read_reply(reply, reply_size);
       free(reply);
     }
   }

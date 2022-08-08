@@ -2,8 +2,8 @@
 
 set -e
 
-echo -e "This is a CLIENT START build script for the Remote Attestation project, 
-it will clone and build all the necessary parts to run the client/applcation
+echo -e "This is a verifier START build script for the Remote Attestation project, 
+it will clone and build all the necessary parts to run the verifier/applcation
 on a RISC-V platform (ex: qemu). Please ensure you have cloned keystone completely 
 and that you have fully built the sdk tests and run them successfully in qemu.
 
@@ -47,17 +47,17 @@ set -e
 mkdir -p libsodium_builds
 cd libsodium_builds
 
-# Clone, checkout, and build the client libsodium
-if [ ! -d libsodium_client ]
+# Clone, checkout, and build the verifier libsodium
+if [ ! -d libsodium_verifier ]
 then
-  git clone https://github.com/jedisct1/libsodium.git libsodium_client
-  cd libsodium_client
+  git clone https://github.com/jedisct1/libsodium.git libsodium_verifier
+  cd libsodium_verifier
   git checkout 4917510626c55c1f199ef7383ae164cf96044aea
   ./configure --host=riscv64-unknown-linux-gnu --disable-ssp --disable-asm --without-pthreads
   make
   cd ..
 fi
-export LIBSODIUM_CLIENT_DIR=$(pwd)/libsodium_client/src/libsodium/
+export LIBSODIUM_verifier_DIR=$(pwd)/libsodium_verifier/src/libsodium/
 
 cd ..
 

@@ -42,6 +42,7 @@ set(KEYSTONE_LIB_HOST ${KEYSTONE_SDK_DIR}/lib/libkeystone-host.a)
 set(KEYSTONE_LIB_EDGE ${KEYSTONE_SDK_DIR}/lib/libkeystone-edge.a)
 set(KEYSTONE_LIB_VERIFIER ${KEYSTONE_SDK_DIR}/lib/libkeystone-verifier.a)
 set(KEYSTONE_LIB_EAPP ${KEYSTONE_SDK_DIR}/lib/libkeystone-eapp.a)
+set(WOLFSSL_LIB ${KEYSTONE_SDK_DIR}/lib/wolfssl/libwolfssl.so)
 
 # find program "makeself"
 find_program(MAKESELF makeself)
@@ -59,15 +60,15 @@ target_link_libraries(trusted_client.riscv
   ${LIBSODIUM_CLIENT_DIR}/.libs/libsodium.a)]]
 
 # enclave
-add_subdirectory(server_eapp)
-set(host_bin demo-server.riscv)
+add_subdirectory(attester_eapp)
+set(host_bin demo-attester.riscv)
 set(host_src enclave-host.cpp edge_wrapper.cpp)
 set(eyrie_plugins "freemem")
-set(package_name "demo-server.ke")
-set(package_script "./demo-server.riscv")
+set(package_name "demo-attester.ke")
+set(package_script "./demo-attester.riscv")
 
 add_executable(${host_bin} ${host_src})
-target_link_libraries(${host_bin} ${KEYSTONE_LIB_HOST} ${KEYSTONE_LIB_EDGE} ${KEYSTONE_LIB_VERIFIER})
+target_link_libraries(${host_bin} ${KEYSTONE_LIB_HOST} ${KEYSTONE_LIB_EDGE} ${KEYSTONE_LIB_VERIFIER} ${WOLFSSL_LIB}) 
 
 set(eyrie_files_to_copy eyrie-rt)
 add_eyrie_runtime(${eapp_bin}-eyrie
@@ -78,7 +79,7 @@ add_eyrie_runtime(${eapp_bin}-eyrie
 add_keystone_package(package
   ${package_name}
   ${package_script}
-  ${eyrie_files_to_copy} server_eapp/server_eapp.eapp_riscv ${host_bin})
+  ${eyrie_files_to_copy} attester_eapp/attester_eapp.eapp_riscv ${host_bin})
 
 add_dependencies(package ${eapp_bin}-eyrie)
 
