@@ -8,7 +8,7 @@
 #include <iostream>
 #include <fstream>
 #include "trusted_verifier.h"
-#include "sodium.h"
+#include <sodium.h>
 #include "report.h"
 
 

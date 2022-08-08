@@ -42,6 +42,7 @@ set(KEYSTONE_LIB_HOST ${KEYSTONE_SDK_DIR}/lib/libkeystone-host.a)
 set(KEYSTONE_LIB_EDGE ${KEYSTONE_SDK_DIR}/lib/libkeystone-edge.a)
 set(KEYSTONE_LIB_VERIFIER ${KEYSTONE_SDK_DIR}/lib/libkeystone-verifier.a)
 set(KEYSTONE_LIB_EAPP ${KEYSTONE_SDK_DIR}/lib/libkeystone-eapp.a)
+set(WOLFSSL_LIB ${KEYSTONE_SDK_DIR}/lib/wolfssl/libwolfssl.so)
 
 # find program "makeself"
 find_program(MAKESELF makeself)
@@ -67,7 +68,7 @@ set(package_name "demo-attester.ke")
 set(package_script "./demo-attester.riscv")
 
 add_executable(${host_bin} ${host_src})
-target_link_libraries(${host_bin} ${KEYSTONE_LIB_HOST} ${KEYSTONE_LIB_EDGE} ${KEYSTONE_LIB_VERIFIER})
+target_link_libraries(${host_bin} ${KEYSTONE_LIB_HOST} ${KEYSTONE_LIB_EDGE} ${KEYSTONE_LIB_VERIFIER} ${WOLFSSL_LIB}) 
 
 set(eyrie_files_to_copy eyrie-rt)
 add_eyrie_runtime(${eapp_bin}-eyrie

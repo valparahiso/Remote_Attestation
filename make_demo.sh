@@ -1,7 +1,7 @@
 #!/bin/bash
 
 
-read -p "1. Compilo il verifier . . . Press any key to continue . . . " -n1 -s
+read -p "1. Compilo il verifier . . . Press any key to continue . . . " -n1 -s 
 mkdir -p verifier/build
 cd verifier/trusted_verifier
 make

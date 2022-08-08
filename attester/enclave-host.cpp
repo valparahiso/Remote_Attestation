@@ -15,6 +15,9 @@
 #include "edge_wrapper.h"
 #include "encl_message.h"
 
+#include <wolfssl/options.h>
+#include <wolfssl/ssl.h>
+
 #define PRINT_MESSAGE_BUFFERS 1
 
 /* We hardcode these for demo purposes. */
@@ -148,8 +151,13 @@ void init_network_wait(){
 
 int main(int argc, char** argv)
 {
-
+ 
   /* Wait for network connection */
+  WOLFSSL_CTX* ctx;
+  WOLFSSL_METHOD* method;
+
+  wolfSSL_Init();
+
   init_network_wait();
 
   printf("[EH] Got connection from remote client\n");
