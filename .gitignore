@@ -357,4 +357,4 @@ verifier/libsodium_builds/
 attester/wolfssl/
 verifier/wolfssl/ 
 verifier/keystone_build/
-verifier/trusted_verifier/cert/
+verifier/trusted_verifier/certs/
