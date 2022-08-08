@@ -356,3 +356,4 @@ attester/libsodium_builds/
 verifier/libsodium_builds/
 attester/wolfssl/
 verifier/wolfssl/ 
+verifier/keystone_build/
