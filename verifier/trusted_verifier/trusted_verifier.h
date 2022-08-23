@@ -22,6 +22,8 @@ int trusted_verifier_read_reply(unsigned char* data, size_t len);
 void send_exit_message();
 void send_wc_message(char* buffer);
 void send_nonce();
+void exchange_keys_and_establish_channel();
+void channel_establish();
 char* generate_nonce();
 calc_message_t* generate_wc_message(char* buffer, size_t buffer_len, size_t* finalsize);
 calc_message_t* generate_exit_message(size_t* finalsize);

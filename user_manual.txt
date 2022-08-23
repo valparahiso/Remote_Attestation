@@ -153,6 +153,7 @@ TMP, dovrò usare un altro metodo:
 ./configure --host=riscv64-unknown-linux-gnu --enable-harden
 make
 
+cp -R ./certs /path/to/keystone_edit/build/buildroot.build/target/root
 cd src/.libs
 ls
 
@@ -207,6 +208,24 @@ sudo cp libkeystone.so /usr/lib
 
 This will generate the libkeystone.so library
 
+
+-------------- WOLFSSL --------------
+
+1. Clone the repo, can be done into the verifier folder
+
+git clone https://github.com/wolfSSL/wolfssl.git wolfssl
+cd wolfssl
+
+./autogen.sh
+
+./configure
+--enable-harden
+make
+make install
+
+cp -R ./certs /path/to/verifier/trusted_verifier
+
+
 -------------- Build verifier --------------
 cd Remote_Attestation/verifier/trusted_verifier
 make 
@@ -215,6 +234,25 @@ make
 This will generate, into the Remote_Attestation/verifier/build folder, the verifier.x86 file, which is the executabe of the verifier
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+ssh-keygen -R 192.168.122.68
+scp /home/simo/Remote_Attestation/attester/wolfssl/src/.libs/libwolfssl.so.34 root@192.168.122.68:/lib
 
 
 

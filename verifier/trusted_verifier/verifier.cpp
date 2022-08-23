@@ -9,8 +9,12 @@
 #include <unistd.h>
 #include "trusted_verifier.h"
 #include "verifier.h"
+#include <wolfssl/options.h>
+#include <wolfssl/ssl.h>
+#include <sys/stat.h>
+#include <stdbool.h>
 
-#define PORTNUM 8067
+#define PORTNUM 1111
 int fd_sock;
 struct sockaddr_in server_addr;
 struct hostent *server;
@@ -18,21 +22,59 @@ struct hostent *server;
 #define BUFFERLEN 4096
 byte local_buffer[BUFFERLEN];
 
+/* declare wolfSSL objects */
+WOLFSSL_CTX *ctx;
+WOLFSSL *ssl;
+
 void send_buffer(byte *buffer, size_t len)
 {
-  write(fd_sock, &len, sizeof(size_t));
-  write(fd_sock, buffer, len);
+  /* Send the message to the server */
+  if ((wolfSSL_write(ssl, &len, sizeof(size_t))) != sizeof(size_t))
+  {
+    printf("ERROR: failed to write size of message\n");
+    wolfSSL_free(ssl);     /* Free the wolfSSL object                  */
+    wolfSSL_CTX_free(ctx); /* Free the wolfSSL context object          */
+    wolfSSL_Cleanup();     /* Cleanup the wolfSSL environment          */
+    close(fd_sock);
+    exit(-1);
+  }
+
+  if ((wolfSSL_write(ssl, buffer, len)) != len)
+  {
+    printf("ERROR: failed to write message for server\n");
+    wolfSSL_free(ssl);     /* Free the wolfSSL object                  */
+    wolfSSL_CTX_free(ctx); /* Free the wolfSSL context object          */
+    wolfSSL_Cleanup();     /* Cleanup the wolfSSL environment          */
+    close(fd_sock);
+    exit(-1);
+  }
+  // write(fd_sock, &len, sizeof(size_t));
+  // write(fd_sock, buffer, len);
 }
 
 byte *recv_buffer(size_t *len)
 {
-  ssize_t n_read = read(fd_sock, local_buffer, sizeof(size_t));
+  ssize_t n_read;
+  /* Read the server data into our buff array */
+  n_read = wolfSSL_read(ssl, local_buffer, sizeof(size_t));
+
+  if (n_read == 0)
+  {
+    printf("ERROR: failed to read message size\n");
+    wolfSSL_free(ssl);     /* Free the wolfSSL object                  */
+    wolfSSL_CTX_free(ctx); /* Free the wolfSSL context object          */
+    wolfSSL_Cleanup();     /* Cleanup the wolfSSL environment          */
+    close(fd_sock);
+    exit(-1);
+  }
+
   if (n_read != sizeof(size_t))
   {
     // Shutdown
     printf("[TC] Invalid message header\n");
     trusted_verifier_exit();
   }
+
   size_t reply_size = *(size_t *)local_buffer;
   byte *reply = (byte *)malloc(reply_size);
   if (reply == NULL)
@@ -41,8 +83,19 @@ byte *recv_buffer(size_t *len)
     printf("[TC] Message too large\n");
     trusted_verifier_exit();
   }
-  n_read = read(fd_sock, reply, reply_size);
-  if ((size_t) n_read != reply_size)
+
+  n_read = wolfSSL_read(ssl, reply, reply_size);
+  if ( n_read == 0)
+  {
+    printf("ERROR: failed to read server message\n");
+    wolfSSL_free(ssl);     /* Free the wolfSSL object                  */
+    wolfSSL_CTX_free(ctx); /* Free the wolfSSL context object          */
+    wolfSSL_Cleanup();     /* Cleanup the wolfSSL environment          */
+    close(fd_sock);
+    exit(-1);
+  }
+
+  if ((size_t)n_read != reply_size)
   {
     printf("[TC] Bad message size\n");
     // Shutdown
@@ -51,6 +104,94 @@ byte *recv_buffer(size_t *len)
 
   *len = reply_size;
   return reply;
+}
+
+void init_wolfSSL()
+{
+  /*---------------------------------*/
+  /* Start of wolfSSL initialization and configuration */
+  /*---------------------------------*/
+  /* Initialize wolfSSL */
+  if ((wolfSSL_Init()) != WOLFSSL_SUCCESS)
+  {
+    printf("ERROR: Failed to initialize the library\n");
+    close(fd_sock);
+    exit(-1);
+  }
+
+  /* Create and initialize WOLFSSL_CTX */
+  if ((ctx = wolfSSL_CTX_new(wolfTLSv1_2_client_method())) == NULL)
+  {
+    printf("ERROR: failed to create WOLFSSL_CTX\n");
+    close(fd_sock);
+    exit(-1);
+  }
+
+  /* Load client certificates into WOLFSSL_CTX */
+  if ((wolfSSL_CTX_load_verify_locations(ctx, "./certs/ca-cert.pem", NULL)) != SSL_SUCCESS)
+  {
+    printf("ERROR: failed to load %s, please check the file.\n",
+           "./certs/ca-cert.pem");
+    wolfSSL_CTX_free(ctx); /* Free the wolfSSL context object          */
+    wolfSSL_Cleanup();     /* Cleanup the wolfSSL environment          */
+    close(fd_sock);
+    exit(-1);
+  }
+
+  /* Create a WOLFSSL object */
+  if ((ssl = wolfSSL_new(ctx)) == NULL)
+  {
+    printf("ERROR: failed to create WOLFSSL object\n");
+    wolfSSL_CTX_free(ctx); /* Free the wolfSSL context object          */
+    wolfSSL_Cleanup();     /* Cleanup the wolfSSL environment          */
+    close(fd_sock);
+    exit(-1);
+  }
+
+  /* Attach wolfSSL to the socket */
+  if ((wolfSSL_set_fd(ssl, fd_sock)) != WOLFSSL_SUCCESS)
+  {
+    printf("ERROR: Failed to set the file descriptor\n");
+    wolfSSL_free(ssl);     /* Free the wolfSSL object                  */
+    wolfSSL_CTX_free(ctx); /* Free the wolfSSL context object          */
+    wolfSSL_Cleanup();     /* Cleanup the wolfSSL environment          */
+    close(fd_sock);
+    exit(-1);
+  }
+
+  /* Connect to wolfSSL on the server side */
+  if ((wolfSSL_connect(ssl)) != SSL_SUCCESS)
+  {
+    printf("ERROR: failed to connect to wolfSSL\n");
+    wolfSSL_free(ssl);     /* Free the wolfSSL object                  */
+    wolfSSL_CTX_free(ctx); /* Free the wolfSSL context object          */
+    wolfSSL_Cleanup();     /* Cleanup the wolfSSL environment          */
+    close(fd_sock);
+    exit(-1);
+  }
+
+  /* Send the message to the server */
+  /*if ((wolfSSL_write(ssl, buff, len)) != len)
+  {
+    printf("ERROR: failed to write entire message\n");
+    wolfSSL_free(ssl);     /* Free the wolfSSL object                  */
+  // wolfSSL_CTX_free(ctx); /* Free the wolfSSL context object          */
+  // wolfSSL_Cleanup();     /* Cleanup the wolfSSL environment          */
+  // close(fd_sock);
+  // exit(-1);
+  //}
+
+  /* Read the server data into our buff array */
+  /*memset(buff, 0, sizeof(buff));
+  if ((wolfSSL_read(ssl, buff, sizeof(buff) - 1)) == -1)
+  {
+    printf("ERROR: failed to read\n");
+    wolfSSL_free(ssl);     /* Free the wolfSSL object                  */
+  // wolfSSL_CTX_free(ctx); /* Free the wolfSSL context object          */
+  // wolfSSL_Cleanup();     /* Cleanup the wolfSSL environment          */
+  // close(fd_sock);
+  // exit(-1);
+  //}
 }
 
 int main(int argc, char *argv[])
@@ -73,6 +214,7 @@ int main(int argc, char *argv[])
     printf("Can't get host\n");
     exit(-1);
   }
+
   server_addr.sin_family = AF_INET;
   memcpy(&server_addr.sin_addr.s_addr, server->h_addr, server->h_length);
   server_addr.sin_port = htons(PORTNUM);
@@ -84,16 +226,16 @@ int main(int argc, char *argv[])
 
   printf("[TC] Connected to enclave host!\n");
 
-  /* Establish channel */
+  init_wolfSSL();
+
+  // genero chiavi pubblica e privata per il verifier
   trusted_verifier_init();
 
-  /* Send pubkey */
-  size_t pubkey_size;
-  byte *pubkey = trusted_verifier_pubkey(&pubkey_size);
-  send_buffer(pubkey, pubkey_size);
+  /* Send verifier pubkey, and receive attester pubkey to establish an encrypted channel */
+  exchange_keys_and_establish_channel();
 
-  /* Send nonce to avoid reply attacks TODO HERE*/
-  send_nonce(); 
+  /* Send nonce to avoid reply attacks*/
+  send_nonce();
 
   size_t report_size;
   byte *report_buffer = recv_buffer(&report_size);

@@ -127,7 +127,7 @@ static int select_gvalues_callback(void *report, int count, char **data, char **
     }
     else if (!strcmp(columns[idx], "enclave_hash"))
     {
-      enclave_hash = (unsigned char *)res; 
+      enclave_hash = (unsigned char *)res;
     }
     else if (!strcmp(columns[idx], "pubkey"))
     {
@@ -224,14 +224,14 @@ bool verify_data_section(Report report)
   data_section = (char *)report.getDataSection();
 
   memcpy(server_pk, data_section, crypto_kx_PUBLICKEYBYTES);
-  if (crypto_kx_client_session_keys(rx, tx, verifier_pk, verifier_sk, server_pk) != 0)
+  /*if (crypto_kx_client_session_keys(rx, tx, verifier_pk, verifier_sk, server_pk) != 0)
   {
     printf("[TC] Bad session keygen\n");
     return false;
   }
 
   printf("[TC] Session keys established\n");
-  channel_ready = 1;
+  channel_ready = 1;*/
 
   for (int i = 0; i < NONCE_SIZE; i++)
   {
@@ -250,7 +250,7 @@ void trusted_verifier_get_report(void *buffer)
 {
 
   Report report;
-  report.fromBytes((unsigned char *)buffer); 
+  report.fromBytes((unsigned char *)buffer);
 
   report.printPretty();
 
@@ -334,6 +334,40 @@ void trusted_verifier_unbox(unsigned char *buffer, size_t len)
   }
 
   return;
+}
+
+void exchange_keys_and_establish_channel()
+{
+  send_buffer(verifier_pk, crypto_kx_PUBLICKEYBYTES);
+
+  size_t public_key_size;
+  byte *attester_key = recv_buffer(&public_key_size);
+
+  if(public_key_size != crypto_kx_PUBLICKEYBYTES){
+    printf("[TC] Wrong size received for the attester public key\n");
+    trusted_verifier_exit();
+  }
+
+  for(int i=0; i<crypto_kx_PUBLICKEYBYTES; i++){
+    server_pk[i] = attester_key[i];  
+  }
+
+  channel_establish();
+}
+
+void channel_establish()
+{
+
+  /* Ask libsodium to generate session keys based on the recv'd pk */
+
+  if (crypto_kx_client_session_keys(rx, tx, verifier_pk, verifier_sk, server_pk) != 0)
+  {
+    printf("[TC] Bad session keygen\n");
+    trusted_verifier_exit();
+  }
+
+  printf("[TC] Session keys established\n");
+  channel_ready = 1;
 }
 
 int trusted_verifier_read_reply(unsigned char *data, size_t len)
