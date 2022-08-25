@@ -7,6 +7,8 @@
         "calculator.h": "c",
         "hacks.h": "c",
         "channel.h": "c",
-        "*.tcc": "cpp"
+        "*.tcc": "cpp",
+        "encl_message.h": "c",
+        "cstddef": "c"
     }
 }
