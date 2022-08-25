@@ -15,11 +15,9 @@
 #include <stdbool.h>
 
 #define PORTNUM 1111
-int fd_sock;
-struct sockaddr_in server_addr;
-struct hostent *server;
-
 #define BUFFERLEN 4096
+
+int fd_sock;
 byte local_buffer[BUFFERLEN];
 
 /* declare wolfSSL objects */
@@ -39,7 +37,7 @@ void send_buffer(byte *buffer, size_t len)
     exit(-1);
   }
 
-  if ((wolfSSL_write(ssl, buffer, len)) != len)
+  if ((wolfSSL_write(ssl, buffer, len)) != (int) len)
   {
     printf("ERROR: failed to write message for server\n");
     wolfSSL_free(ssl);     /* Free the wolfSSL object                  */
@@ -48,8 +46,8 @@ void send_buffer(byte *buffer, size_t len)
     close(fd_sock);
     exit(-1);
   }
-  // write(fd_sock, &len, sizeof(size_t));
-  // write(fd_sock, buffer, len);
+
+  printf("Message correctly sent\n");
 }
 
 byte *recv_buffer(size_t *len)
@@ -71,7 +69,7 @@ byte *recv_buffer(size_t *len)
   if (n_read != sizeof(size_t))
   {
     // Shutdown
-    printf("[TC] Invalid message header\n");
+    printf("Invalid message header\n");
     trusted_verifier_exit();
   }
 
@@ -80,12 +78,12 @@ byte *recv_buffer(size_t *len)
   if (reply == NULL)
   {
     // Shutdown
-    printf("[TC] Message too large\n");
+    printf("Message too large\n");
     trusted_verifier_exit();
   }
 
   n_read = wolfSSL_read(ssl, reply, reply_size);
-  if ( n_read == 0)
+  if (n_read == 0)
   {
     printf("ERROR: failed to read server message\n");
     wolfSSL_free(ssl);     /* Free the wolfSSL object                  */
@@ -97,20 +95,20 @@ byte *recv_buffer(size_t *len)
 
   if ((size_t)n_read != reply_size)
   {
-    printf("[TC] Bad message size\n");
+    printf("Bad message size\n");
     // Shutdown
     trusted_verifier_exit();
   }
 
   *len = reply_size;
+
+  printf("Message correctly received\n");
   return reply;
 }
 
 void init_wolfSSL()
 {
-  /*---------------------------------*/
-  /* Start of wolfSSL initialization and configuration */
-  /*---------------------------------*/
+
   /* Initialize wolfSSL */
   if ((wolfSSL_Init()) != WOLFSSL_SUCCESS)
   {
@@ -169,46 +167,21 @@ void init_wolfSSL()
     close(fd_sock);
     exit(-1);
   }
-
-  /* Send the message to the server */
-  /*if ((wolfSSL_write(ssl, buff, len)) != len)
-  {
-    printf("ERROR: failed to write entire message\n");
-    wolfSSL_free(ssl);     /* Free the wolfSSL object                  */
-  // wolfSSL_CTX_free(ctx); /* Free the wolfSSL context object          */
-  // wolfSSL_Cleanup();     /* Cleanup the wolfSSL environment          */
-  // close(fd_sock);
-  // exit(-1);
-  //}
-
-  /* Read the server data into our buff array */
-  /*memset(buff, 0, sizeof(buff));
-  if ((wolfSSL_read(ssl, buff, sizeof(buff) - 1)) == -1)
-  {
-    printf("ERROR: failed to read\n");
-    wolfSSL_free(ssl);     /* Free the wolfSSL object                  */
-  // wolfSSL_CTX_free(ctx); /* Free the wolfSSL context object          */
-  // wolfSSL_Cleanup();     /* Cleanup the wolfSSL environment          */
-  // close(fd_sock);
-  // exit(-1);
-  //}
 }
 
-int main(int argc, char *argv[])
+void connect_to_attester(char *hostname)
 {
-  if (argc < 2)
-  {
-    printf("Usage %s hostname\n", argv[0]);
-    exit(-1);
-  }
-
+  printf("\nTrying to connect to %s . . .\n", hostname);
+  struct sockaddr_in server_addr;
+  struct hostent *server;
   fd_sock = socket(AF_INET, SOCK_STREAM, 0);
   if (fd_sock < 0)
   {
     printf("No socket\n");
     exit(-1);
   }
-  server = gethostbyname(argv[1]);
+
+  server = gethostbyname(hostname);
   if (server == NULL)
   {
     printf("Can't get host\n");
@@ -224,22 +197,36 @@ int main(int argc, char *argv[])
     exit(-1);
   }
 
-  printf("[TC] Connected to enclave host!\n");
+  printf("Connected to %s\n", hostname);
+}
 
-  init_wolfSSL();
-
-  // genero chiavi pubblica e privata per il verifier
-  trusted_verifier_init();
-
-  /* Send verifier pubkey, and receive attester pubkey to establish an encrypted channel */
-  exchange_keys_and_establish_channel();
-
-  /* Send nonce to avoid reply attacks*/
-  send_nonce();
+int main(int argc, char *argv[])
+{
 
   size_t report_size;
-  byte *report_buffer = recv_buffer(&report_size);
-  trusted_verifier_get_report(report_buffer, report_size);
+  byte *report_buffer;
+
+  if (argc < 2)
+  {
+    printf("Usage %s hostname\n", argv[0]);
+    exit(-1);
+  }
+
+  connect_to_attester(argv[1]); // Connect to the attester
+
+  init_wolfSSL(); // Set up the TLS connection on the socket
+
+  trusted_verifier_init(); // Generate verifier keypair using libsodium
+
+  exchange_keys_and_establish_channel(); // Send verifier pubkey, and receive attester pubkey to establish an encrypted channel
+
+  send_nonce(); // Send nonce to avoid reply attacks
+
+  printf("\nTrying to receive encrypted report from the attester. . .\n");
+  report_buffer = recv_buffer(&report_size); // Get encrypted report from the attester
+
+  trusted_verifier_attest_report(report_buffer, report_size); // Decrypt and attest the received report
+
   free(report_buffer);
 
   /* Send/recv messages */
