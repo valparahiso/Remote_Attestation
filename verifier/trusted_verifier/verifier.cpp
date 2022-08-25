@@ -239,7 +239,7 @@ int main(int argc, char *argv[])
 
   size_t report_size;
   byte *report_buffer = recv_buffer(&report_size);
-  trusted_verifier_get_report(report_buffer);
+  trusted_verifier_get_report(report_buffer, report_size);
   free(report_buffer);
 
   /* Send/recv messages */

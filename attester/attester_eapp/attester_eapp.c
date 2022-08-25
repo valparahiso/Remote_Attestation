@@ -9,13 +9,14 @@
 #include "channel.h"
 
 #define NONCE_SIZE 64
+#define REPORT_SIZE 2017
 char nonce_no_reply[NONCE_SIZE];
 
 void read_nonce()
 {
   struct edge_data nonce;
   calc_message_t *calc_nonce;
-  size_t nonce_len;
+  size_t nonce_len; 
 
   ocall_wait_for_message(&nonce);
   calc_nonce = malloc(nonce.size);
@@ -27,33 +28,57 @@ void read_nonce()
     EAPP_RETURN(1);
   }
 
-  for(int i=0; i<NONCE_SIZE; i++){
+  for (int i = 0; i < NONCE_SIZE; i++)
+  {
     nonce_no_reply[i] = calc_nonce->msg[i];
   }
 
   nonce_no_reply[NONCE_SIZE] = '\0';
 
   ocall_print_buffer("NONCE RICEVUTO:\n");
-  ocall_print_buffer(nonce_no_reply); 
+  ocall_print_buffer(nonce_no_reply);
 }
 
 void generate_and_send_attestation_report()
 {
+  unsigned char *report_buffer;
+  size_t report_size = ocall_get_report_size(); 
 
-  //TODO RIPARTO DA QUA
-  char buffer[2048];
-  char data_section[NONCE_SIZE + crypto_kx_PUBLICKEYBYTES];
+  ocall_print_buffer("FUNZIONA LA CHIAMATA, REPORT GRANDE: \n");
+  ocall_print_value(report_size);
 
-  for (int i = 0; i < crypto_kx_PUBLICKEYBYTES; i++)
-    data_section[i] = attester_pk[i];
+  unsigned char data_section[NONCE_SIZE];
 
   for (int i = 0; i < NONCE_SIZE; i++)
-    data_section[i + crypto_kx_PUBLICKEYBYTES] = nonce[i];
+    data_section[i] = nonce_no_reply[i];
 
-  attest_enclave((void *)buffer, data_section, crypto_kx_PUBLICKEYBYTES + NONCE_SIZE);
-  ocall_send_report(buffer, 2048);
+  report_buffer = malloc(report_size);
+
+  attest_enclave((void *)report_buffer, data_section, NONCE_SIZE); // dev_key è dentro bootrom
+
+  ocall_print_buffer("GENERO CORRETTAMENTE IL REPORT:\n");
+
+  //ocall_send_report((char*) buffer, REPORT_SIZE); 
+  size_t report_size_encrypted = channel_get_send_size(report_size);
+  unsigned char *report_buffer_encrypted = malloc(report_size_encrypted);
+
+  ocall_print_buffer("CALCOLO SIZE DEL REPORT CRIPTATO: \n");
+  ocall_print_value(report_size_encrypted);
+
+  if (report_buffer_encrypted == NULL)
+  {
+    ocall_print_buffer("Report too large to allocate, no report sent\n");
+    ocall_print_buffer("Shutting down attester...");
+    EAPP_RETURN(1); 
+  }
+
+  channel_send((unsigned char *)report_buffer, report_size, report_buffer_encrypted); 
+
+  ocall_send_report((char *)report_buffer_encrypted, report_size_encrypted);
+  free(report_buffer);
+  free(report_buffer_encrypted);
 }
-
+ 
 void receive_and_send_public_key()
 {
   ocall_wait_for_client_pubkey(client_pk, crypto_kx_PUBLICKEYBYTES);

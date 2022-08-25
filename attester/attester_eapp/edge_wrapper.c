@@ -38,7 +38,6 @@ unsigned long ocall_print_buffer(char *data)
 
 void ocall_wait_for_message(struct edge_data *msg)
 {
-
   ocall(OCALL_WAIT_FOR_MESSAGE, NULL, 0, msg, sizeof(struct edge_data));
 }
 
@@ -59,4 +58,13 @@ void ocall_send_reply(unsigned char *data, size_t len)
 {
   ocall(OCALL_SEND_REPLY, data, len, 0, 0);
   return;
+}
+
+size_t ocall_get_report_size()
+{
+
+  size_t report_size;
+  ocall(OCALL_GET_REPORT_SIZE, NULL, 0, &report_size, sizeof(size_t));
+
+  return report_size;
 }

@@ -17,7 +17,7 @@ typedef unsigned char byte;
 void trusted_verifier_exit();
 void trusted_verifier_init();
 byte* trusted_verifier_pubkey(size_t* len);
-void trusted_verifier_get_report(void* buffer);
+void trusted_verifier_get_report(unsigned char* buffer, size_t report_size);
 int trusted_verifier_read_reply(unsigned char* data, size_t len);
 void send_exit_message();
 void send_wc_message(char* buffer);

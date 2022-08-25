@@ -60,7 +60,7 @@ byte *recv_buffer(size_t *len)
   memset(local_buffer, 0, sizeof(local_buffer));
   if ((wolfSSL_read(ssl, local_buffer, sizeof(size_t))) == 0)
   {
-    printf("ERROR: failed to read length\n"); 
+    printf("ERROR: failed to read length\n");
     exit(-1);
   }
   // read(fd_clientsock, local_buffer, sizeof(size_t));
@@ -148,7 +148,7 @@ void send_server_pubkey(void *data, size_t len)
   if (PRINT_MESSAGE_BUFFERS)
     print_hex_data((unsigned char *)data, len);
 
-  send_buffer((byte *)data, len); 
+  send_buffer((byte *)data, len);
 }
 
 encl_message_t wait_for_message()
@@ -171,6 +171,11 @@ encl_message_t wait_for_message()
 
 void send_report(void *buffer, size_t len)
 {
+  printf("[EH] Sending encrypted report:\n");
+
+  if (PRINT_MESSAGE_BUFFERS)
+    print_hex_data((unsigned char *)buffer, len);
+
   send_buffer((byte *)buffer, len);
 }
 

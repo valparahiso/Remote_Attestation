@@ -11,6 +11,7 @@
 #include <openssl/bio.h>
 #include <openssl/buffer.h>
 #define NONCE_SIZE 64
+#define REPORT_SIZE 4096
 
 unsigned char verifier_pk[crypto_kx_PUBLICKEYBYTES];
 unsigned char verifier_sk[crypto_kx_SECRETKEYBYTES];
@@ -215,7 +216,7 @@ byte *trusted_verifier_pubkey(size_t *len)
 bool verify_data_section(Report report)
 {
   char *data_section;
-  if (report.getDataSize() != crypto_kx_PUBLICKEYBYTES + NONCE_SIZE)
+  if (report.getDataSize() != NONCE_SIZE)
   {
     printf("[TC] Bad report data section size\n");
     return false;
@@ -223,19 +224,9 @@ bool verify_data_section(Report report)
 
   data_section = (char *)report.getDataSection();
 
-  memcpy(server_pk, data_section, crypto_kx_PUBLICKEYBYTES);
-  /*if (crypto_kx_client_session_keys(rx, tx, verifier_pk, verifier_sk, server_pk) != 0)
-  {
-    printf("[TC] Bad session keygen\n");
-    return false;
-  }
-
-  printf("[TC] Session keys established\n");
-  channel_ready = 1;*/
-
   for (int i = 0; i < NONCE_SIZE; i++)
   {
-    if ((char)nonce[i] != data_section[crypto_kx_PUBLICKEYBYTES + i])
+    if ((char)nonce[i] != data_section[i])
     {
       printf("[TC] Returned data in the report do NOT match with the nonce sent.\n");
       return false;
@@ -246,11 +237,12 @@ bool verify_data_section(Report report)
   return true;
 }
 
-void trusted_verifier_get_report(void *buffer)
+void trusted_verifier_get_report(unsigned char *buffer, size_t report_size)
 {
 
+  trusted_verifier_unbox(buffer, report_size);   
   Report report;
-  report.fromBytes((unsigned char *)buffer);
+  report.fromBytes(buffer); 
 
   report.printPretty();
 
@@ -318,10 +310,23 @@ void trusted_verifier_unbox(unsigned char *buffer, size_t len)
 {
 
   size_t clen = len - crypto_secretbox_NONCEBYTES;
+
+  printf("LUNGHEZZA RICEVUTA DEL REPORT: %li\n", len);
   unsigned char *nonceptr = &(buffer[clen]);
+
+  printf("LUNGHEZZA RICEVUTA SOLO DEL REPORT: %li\n", clen); 
+
+
+  printf("REPORT CRIPTATO RICEVUTO: \n");
+  for (int i=0; i<len; i++){
+    printf("%02x", buffer[i]); 
+  }
+
+  printf("\n");
+
   if (crypto_secretbox_open_easy(buffer, buffer, clen, nonceptr, rx) != 0)
   {
-    printf("[TC] unbox failed\n");
+    printf("[TC] Report unbox failed\n");
     trusted_verifier_exit();
   }
 
@@ -343,13 +348,15 @@ void exchange_keys_and_establish_channel()
   size_t public_key_size;
   byte *attester_key = recv_buffer(&public_key_size);
 
-  if(public_key_size != crypto_kx_PUBLICKEYBYTES){
+  if (public_key_size != crypto_kx_PUBLICKEYBYTES)
+  {
     printf("[TC] Wrong size received for the attester public key\n");
     trusted_verifier_exit();
   }
 
-  for(int i=0; i<crypto_kx_PUBLICKEYBYTES; i++){
-    server_pk[i] = attester_key[i];  
+  for (int i = 0; i < crypto_kx_PUBLICKEYBYTES; i++)
+  {
+    server_pk[i] = attester_key[i];
   }
 
   channel_establish();
