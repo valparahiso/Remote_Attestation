@@ -63,7 +63,7 @@ byte *recv_buffer(size_t *len)
   }
   // read(fd_clientsock, local_buffer, sizeof(size_t));
   size_t reply_size = *(size_t *)local_buffer;
-  byte *reply = (byte *)malloc(reply_size);
+  byte *reply = (byte *)malloc(reply_size + 1);
 
   if ((wolfSSL_read(ssl, reply, reply_size)) == -1)
   {
@@ -72,7 +72,8 @@ byte *recv_buffer(size_t *len)
   }
   // read(fd_clientsock, reply, reply_size);
   *len = reply_size;
-  printf("[Enclave Host] Message correctly received from the verifier\n");
+  reply[reply_size] = '\0';
+  printf("[Enclave Host] Message correctly received from the verifier");
 
   return reply;
 }
@@ -198,14 +199,6 @@ void init_wolfSSL()
   }
 
   printf("[Enclave Host]  TLS connection correctly established\n");
-
-  /* Notify the client that the connection is ending */
-  // wolfSSL_shutdown(ssl);
-  // printf("Shutdown complete\n");
-
-  /* Cleanup after this connection */
-  // wolfSSL_free(ssl); /* Free the wolfSSL object              */
-  // close(fd_clientsock);      /* Close the connection to the client   */
 }
 
 void init_network_wait()
@@ -245,28 +238,52 @@ void init_network_wait()
   printf("[Enclave Host] Got connection from remote client\n");
 }
 
+void close_wolfSSL()
+{
+  if (wolfSSL_shutdown(ssl) == SSL_FATAL_ERROR)
+  {
+    printf("Failed to shutdown the connection complete\n");
+    exit(-1);
+  }
+
+  wolfSSL_free(ssl);     /* Free the wolfSSL object                  */
+  wolfSSL_CTX_free(ctx); /* Free the wolfSSL context object          */
+  wolfSSL_Cleanup();     /* Cleanup the wolfSSL environment          */
+  printf("[Enclave Host] Shutdown completed\n");
+}
+
 int main(int argc, char **argv)
 {
-
   /* Wait for network connection */
   init_network_wait();
 
   init_wolfSSL();
 
-  Keystone::Enclave enclave;
-  Keystone::Params params;
-
-  if (enclave.init(enc_path, runtime_path, params) != Keystone::Error::Success)
+  while (1)
   {
-    printf("[Enclave Host] Unable to start enclave\n");
-    exit(-1);
+    printf("\n[Enclave Host] Trying to receive the eapp path to attest . . .\n");
+    size_t len;
+    char *eapp_path = (char *)recv_buffer(&len);
+
+    if(!strcmp(eapp_path, "CLOSE")){
+      printf("\n[Enclave Host] Received closing message, exiting . . .\n");
+      return 0; 
+    }
+
+    Keystone::Enclave enclave;
+    Keystone::Params params;
+
+    if (enclave.init(eapp_path, runtime_path, params) != Keystone::Error::Success)
+    {
+      printf("[Enclave Host] Unable to start enclave\n");
+      exit(-1);
+    }
+
+    printf("\n[Enclave Host] Starting the enclave . . .\n");
+    edge_init(&enclave);
+
+    Keystone::Error rval = enclave.run();
+    printf("[Enclave Host] Enclave returned: %i\n", rval);
   }
-
-  printf("\n[Enclave Host] Starting the enclave . . .\n");
-  edge_init(&enclave);
-
-  Keystone::Error rval = enclave.run();
-  printf("rval: %i\n", rval);
-
   return 0;
 }

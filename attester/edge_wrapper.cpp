@@ -17,7 +17,7 @@ int edge_init(Keystone::Enclave *enclave)
   register_call(OCALL_SEND_SERVER_PUBKEY, send_server_pubkey_wrapper);
   register_call(OCALL_SEND_REPLY, send_reply_wrapper);
   register_call(OCALL_GET_REPORT_SIZE, get_report_size_wrapper);
-
+  
   edge_call_init_internals((uintptr_t)enclave->getSharedBuffer(),
                            enclave->getSharedBufferSize());
 }
@@ -225,9 +225,9 @@ void get_report_size_wrapper(void *buffer)
   // TODO safety check?
   uintptr_t data_section = edge_call_data_ptr();
 
-  memcpy((void *)data_section, &report_size, sizeof(unsigned long));
+  memcpy((void *)data_section, &report_size, sizeof(size_t));
 
-  if (edge_call_setup_ret(edge_call, (void *)data_section, sizeof(unsigned long)))
+  if (edge_call_setup_ret(edge_call, (void *)data_section, sizeof(size_t)))
   {
     edge_call->return_data.call_status = CALL_STATUS_BAD_PTR;
   }

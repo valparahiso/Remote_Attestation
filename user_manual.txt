@@ -235,7 +235,7 @@ This will generate, into the Remote_Attestation/verifier/build folder, the verif
 
 
 
-
+ 
 
 
 
@@ -256,7 +256,7 @@ scp /home/simo/Remote_Attestation/attester/wolfssl/src/.libs/libwolfssl.so.34 ro
 
 
 
-
+Per fare 2 VM bisogna clonarne una, cambiare MAC e duplicare l'immagine (path/to/keystone_edit/build/vuild.buildroot/images rootf)
 
 
 

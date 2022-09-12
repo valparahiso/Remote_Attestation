@@ -132,7 +132,7 @@ void handle_messages()
     free(reply_buffer);
   }
 }
-
+ 
 void EAPP_ENTRY eapp_entry()
 {
   edge_init();
@@ -151,7 +151,7 @@ void EAPP_ENTRY eapp_entry()
 
   generate_and_send_attestation_report(); // generate and send the quote
 
-  handle_messages();
+  //handle_messages(); 
 
   EAPP_RETURN(0);
 }

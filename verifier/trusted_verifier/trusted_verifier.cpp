@@ -5,6 +5,7 @@
 #include "enclave_expected_hash.h"
 #include "sm_expected_hash.h"
 #include <sqlite3.h>
+#include <time.h>
 
 #include <openssl/evp.h>
 #include <openssl/bio.h>
@@ -22,7 +23,7 @@ int double_fault;
 int channel_ready;
 bool attestor_valid = false;
 bool report_valid = false;
-int attestor_id = -1;
+bool libsodium_init = false;
 
 int calcDecodeLength(const char *b64input)
 { // Calculates the length of a decoded base64 string
@@ -73,18 +74,18 @@ static int check_attestor_callback(void *report, int count, char **data, char **
   if (received_report->checkSignaturesOnly((unsigned char *)res))
   {
     attestor_valid = true;
-    attestor_id = atoi(data[1]);
   }
 
   return 0;
 }
 
-void check_attestor(Report report)
+void check_attestor(Report report, int attester_id)
 {
   sqlite3 *db;
   char *zErrMsg = 0;
   int rc;
   attestor_valid = false;
+  char sql[256];
 
   /* Open database */
   rc = sqlite3_open("../db/gvalues.db", &db);
@@ -95,8 +96,11 @@ void check_attestor(Report report)
     return;
   }
 
+  /* Create SQL statement */
+  sprintf(sql, "SELECT pubkey, id from attestors WHERE id=%d", attester_id);
+
   /* Execute SQL statement */
-  rc = sqlite3_exec(db, "SELECT pubkey, id from attestors", check_attestor_callback, &report, NULL);
+  rc = sqlite3_exec(db, sql, check_attestor_callback, &report, &zErrMsg);
 
   if (rc != SQLITE_OK)
   {
@@ -139,7 +143,7 @@ static int select_gvalues_callback(void *report, int count, char **data, char **
   return 0;
 }
 
-void select_gvalues(Report report)
+void select_gvalues(Report report, int attester_id, int eapp_id)
 {
   sqlite3 *db;
   char *zErrMsg = 0;
@@ -156,11 +160,51 @@ void select_gvalues(Report report)
   }
 
   /* Create SQL statement */
-
-  sprintf(sql, "SELECT COUNT(*), G.enclave_hash, G.sm_hash, A.pubkey FROM gvalues AS G, attestors AS A WHERE G.attestor=A.id AND G.attestor=%d", attestor_id);
+  sprintf(sql, "SELECT COUNT(*), G.enclave_hash, G.sm_hash, A.pubkey FROM gvalues AS G, attestors AS A WHERE G.attestor=A.id AND G.attestor=%d AND G.eapp=%d", attester_id, eapp_id);
 
   /* Execute SQL statement */
-  rc = sqlite3_exec(db, sql, select_gvalues_callback, &report, NULL);
+  rc = sqlite3_exec(db, sql, select_gvalues_callback, &report, &zErrMsg);
+
+  if (rc != SQLITE_OK)
+  {
+    fprintf(stderr, "SQL error: %s\n", zErrMsg);
+    sqlite3_free(zErrMsg);
+  }
+
+  sqlite3_close(db);
+  return;
+}
+
+void update_status_and_timestamp(bool attester, char *status, int id)
+{
+  sqlite3 *db;
+  char *zErrMsg = 0;
+  int rc;
+  char sql[256];
+
+  time_t timer;
+  char timestamp[26];
+  struct tm *tm_info;
+
+  timer = time(NULL);
+  tm_info = localtime(&timer);
+
+  strftime(timestamp, 26, "%Y-%m-%d %H:%M:%S", tm_info);
+ 
+  /* Open database */
+  rc = sqlite3_open("../db/gvalues.db", &db);
+
+  if (rc)
+  {
+    fprintf(stderr, "Can't open database: %s\n", sqlite3_errmsg(db));
+    return;
+  }
+
+  /* Create SQL statement */
+  sprintf(sql, "UPDATE %s SET status = \"%s\", timestamp = \"%s\" WHERE id=%d", (attester ? "attestors" : "eapps"), status, timestamp, id);
+
+  /* Execute SQL statement */
+  rc = sqlite3_exec(db, sql, 0, 0, &zErrMsg);
 
   if (rc != SQLITE_OK)
   {
@@ -190,19 +234,23 @@ void trusted_verifier_exit()
 
 void trusted_verifier_init()
 {
+  int ret = 0;
+  if (!libsodium_init)
+    ret = sodium_init();
 
-  if (sodium_init() != 0)
+  if (ret != 0)
   {
     printf("Libsodium initialization failure\n");
     trusted_verifier_exit();
   }
+
+  libsodium_init = true;
   if (crypto_kx_keypair(verifier_pk, verifier_sk) != 0)
   {
     printf("Libsodium keypair generation failure\n");
     trusted_verifier_exit();
   }
 
-  printf("Verifier keypair generated correctly\n");
   channel_ready = 0;
 }
 
@@ -236,10 +284,11 @@ bool verify_data_section(Report report)
   return true;
 }
 
-void trusted_verifier_attest_report(unsigned char *buffer, size_t report_size)
+bool trusted_verifier_attest_report(unsigned char *buffer, size_t report_size, int attester_id, int eapp_id)
 {
   printf("\nTrying to decrypt with session keys the received report. . .\n");
-  trusted_verifier_unbox(buffer, report_size);
+  if(!trusted_verifier_unbox(buffer, report_size))
+    return false;
 
   Report report;
   report.fromBytes(buffer);
@@ -248,29 +297,34 @@ void trusted_verifier_attest_report(unsigned char *buffer, size_t report_size)
   report.printPretty();
 
   printf("\nStarting to attest the received report. . .\n");
-  check_attestor(report);
+  check_attestor(report, attester_id);
 
   if (!attestor_valid)
   {
     printf("Server public key is not in the whitelist\n");
-    trusted_verifier_exit();
+
+    update_status_and_timestamp(false, "INVALID", eapp_id);
+    return true;
   }
 
   printf("Server public key is in the whitelist, proceeding validating report\n");
   attestor_valid = false;
 
-  select_gvalues(report);
+  select_gvalues(report, attester_id, eapp_id);
 
   if (report_valid && verify_data_section(report))
   {
     printf("Attestation signature and enclave hash are valid\n");
+    update_status_and_timestamp(false, "VALID", eapp_id);
     report_valid = false;
   }
   else
   {
     printf("Attestation report is NOT valid\n");
-    trusted_verifier_exit();
+    update_status_and_timestamp(false, "INVALID", eapp_id); 
   }
+
+  return true;
 }
 
 #define MSG_BLOCKSIZE 32
@@ -305,12 +359,11 @@ byte *trusted_verifier_box(byte *msg, size_t size, size_t *finalsize)
     trusted_verifier_exit();
   }
 
-
-  printf("Message correctly encrypted\n"); 
+  printf("Message correctly encrypted\n");
   return (buffer);
 }
 
-void trusted_verifier_unbox(unsigned char *buffer, size_t len)
+bool trusted_verifier_unbox(unsigned char *buffer, size_t len)
 {
   size_t clen = len - crypto_secretbox_NONCEBYTES;
   unsigned char *nonceptr = &(buffer[clen]);
@@ -318,7 +371,7 @@ void trusted_verifier_unbox(unsigned char *buffer, size_t len)
   if (crypto_secretbox_open_easy(buffer, buffer, clen, nonceptr, rx) != 0)
   {
     printf("Crypto unbox failed\n");
-    trusted_verifier_exit();
+    return false;
   }
 
   size_t ptlen = len - crypto_secretbox_NONCEBYTES - crypto_secretbox_MACBYTES;
@@ -326,15 +379,15 @@ void trusted_verifier_unbox(unsigned char *buffer, size_t len)
   if (sodium_unpad(&unpad_len, buffer, ptlen, MSG_BLOCKSIZE) != 0)
   {
     printf("Invalid message padding, ignoring\n");
-    trusted_verifier_exit();
+    return false;
   }
 
   printf("Message correctly decrypted\n");
 
-  return;
+  return true;
 }
 
-void exchange_keys_and_establish_channel()
+bool exchange_keys_and_establish_channel()
 {
   printf("\nTrying to send generated verifier public key to the attester. . .\n");
   send_buffer(verifier_pk, crypto_kx_PUBLICKEYBYTES);
@@ -343,10 +396,13 @@ void exchange_keys_and_establish_channel()
   printf("\nTrying to receive generated attester public key from the attester. . .\n");
   byte *attester_key = recv_buffer(&public_key_size);
 
+  if(!strcmp((char*) attester_key, "ERROR"))
+    return false;
+
   if (public_key_size != crypto_kx_PUBLICKEYBYTES)
   {
     printf("Wrong size received for the attester public key\n");
-    trusted_verifier_exit();
+    return false;
   }
 
   for (int i = 0; i < crypto_kx_PUBLICKEYBYTES; i++)
@@ -356,6 +412,7 @@ void exchange_keys_and_establish_channel()
 
   printf("\nTrying to generate session keys to establish an encrypted channel between eapp and verifier. . .\n");
   channel_establish(); // generating encrypted channel from eapp to verifier
+  return true;
 }
 
 void channel_establish()
@@ -451,7 +508,7 @@ void send_nonce()
   {
     printf("%02x", (unsigned char)nonce_buffer[i]);
   }
-  printf("\n\n"); 
+  printf("\n\n");
 
   memcpy(nonce, nonce_buffer, NONCE_SIZE);
   calc_message_t *pt_msg = generate_wc_message((char *)nonce_buffer, NONCE_SIZE + 2, &pt_size);
@@ -462,7 +519,7 @@ void send_nonce()
   byte *ct_msg = trusted_verifier_box((byte *)pt_msg, pt_size, &ct_size);
 
   printf("\nTrying to send the encrypted nonce. . .\n");
-  send_buffer(ct_msg, ct_size); 
+  send_buffer(ct_msg, ct_size);
 
   free(pt_msg);
   free(ct_msg);
