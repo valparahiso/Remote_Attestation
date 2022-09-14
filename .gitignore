@@ -363,7 +363,7 @@ registrar/__pycache__/
 registrar/venv/
 registrar/libregistrar.so
 registrar/registrar.o
-
+registrar/pybind/
 
 
 
