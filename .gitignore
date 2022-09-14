@@ -361,8 +361,7 @@ verifier/trusted_verifier/certs/
 attester/certs/
 registrar/__pycache__/
 registrar/venv/
-registrar/libregistrar.so
-registrar/registrar.o
+registrar/registrar.cpython-38-x86_64-linux-gnu.so
 registrar/pybind/
 
 
