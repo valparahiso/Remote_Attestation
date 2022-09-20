@@ -2,3 +2,6 @@
 	path = registrar/extern/pybind11
 	url = https://github.com/pybind/pybind11.git
 	branch = stable
+[submodule "registrar/extern/pybind11_json_binding"]
+	path = registrar/extern/pybind11_json_binding
+	url = https://github.com/pybind/pybind11_json.git

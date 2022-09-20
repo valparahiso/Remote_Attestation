@@ -1,22 +1,26 @@
-from flask import Flask
-from flask_restful import Api, Resource
-
+import json
+from flask import Flask, request
 import registrar
+from pathlib import Path
+
+context = ('./registrar_cert/myserver.local.crt',
+           './registrar_cert/myserver.local.key')
 
 app = Flask(__name__)
-api = Api(app)
 
-class Platform_Provider(Resource):
-    def get(self):
-        print(registrar.add(i=1, j=2))
-        return {"data":"prova"}
+@app.route("/platform_providers")
+def get():
+    j = registrar.get_platform_providers()
+    print(j)
+    if "Error" in j.keys():
+        return {"Error": j["Error"]}, j["Code"]
+    return j
 
-    def post(self):
-        return {"data":"Hello World"} 
-    
-
-api.add_resource(Platform_Provider, "/platform_providers") 
+@app.route("/provider_register", methods=["POST"]) 
+def post():
+    j = registrar.register_node(json.loads(request.data.decode('UTF-8')))
+    return j
 
 
 if __name__ == "__main__":
-    app.run(debug=True) #TODO togliere il debug mode
+    app.run(debug=True, ssl_context=context)  # TODO togliere il debug mode

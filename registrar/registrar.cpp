@@ -1,16 +1,26 @@
-#include <pybind11/pybind11.h> 
+#include <pybind11/pybind11.h>
 #include <nlohmann/json.hpp>
+#include "./extern/pybind11_json_binding/include/pybind11_json/pybind11_json.hpp"
+#include "registrar_db_op.hpp"
+#include <iostream>
 
 namespace py = pybind11;
 namespace nl = nlohmann;
-
-int add(int i, int j){
-    return i+j;
+ 
+nl::json register_node(const nl::json &data_json)
+{
+    return check_pp_send_challenge(data_json);
 }
 
+nl::json get_platform_providers()
+{
+    return get_pp_from_db(); 
+}
 
-PYBIND11_MODULE(registrar, m) {
-    m.doc() = "pybind11 example plugin"; // optional module docstring
+PYBIND11_MODULE(registrar, m)
+{
+    m.doc() = "My awesome module";
 
-    m.def("add", &add, "A function that adds two numbers", py::arg("i"), py::arg("j")); 
+    m.def("register_node", &register_node, "pass py::object to a C++ function that takes an nlohmann::json");
+    m.def("get_platform_providers", &get_platform_providers, "return py::object from a C++ function that returns an nlohmann::json");
 }
