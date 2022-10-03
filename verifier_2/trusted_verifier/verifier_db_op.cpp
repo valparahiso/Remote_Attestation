@@ -7,13 +7,14 @@
 #include <netinet/in.h>
 #include <netdb.h>
 #include <unistd.h>
-#include "trusted_verifier.h"
-#include "verifier.h"
+#include "trusted_verifier.hpp"
+#include "verifier_db_op.hpp"
 #include <wolfssl/options.h>
 #include <wolfssl/ssl.h>
 #include <sys/stat.h>
 #include <stdbool.h>
 #include <sqlite3.h>
+#include <nlohmann/json.hpp>
 
 #define PORTNUM 1111
 #define BUFFERLEN 4096
@@ -360,7 +361,93 @@ void get_eapps(int id, int i)
   return;
 }
 
-int main(int argc, char *argv[])
+bool insert_attester_db(nl::json attester_data)
+{
+  if (!attester_data.contains("dev_pub_key") || !attester_data.contains("ip") || !attester_data.contains("port") || !attester_data.contains("uuid"))
+    return false;
+
+  std::string uuid = attester_data["uuid"].get<std::string>();
+  std::string ip = attester_data["ip"].get<std::string>();
+  std::string port = attester_data["port"].get<std::string>();
+  std::string dev_pub_key = attester_data["dev_pub_key"].get<std::string>();
+
+  sqlite3 *db;
+  char *zErrMsg = 0;
+  int rc;
+  std::string sql;
+
+  /* Open database */
+  rc = sqlite3_open("./db/gvalues.db", &db);
+
+  if (rc)
+  {
+    fprintf(stderr, "Can't open database: %s\n", sqlite3_errmsg(db));
+    return false;
+  }
+
+  sql = "INSERT OR IGNORE INTO attestors(uuid, pubkey, hostname, port) VALUES ('" + uuid + "', '" + dev_pub_key + "', '" + ip + "', '" + port + "')";
+
+  /* Execute SQL statement */
+  rc = sqlite3_exec(db, sql.c_str(), nullptr, nullptr, &zErrMsg);
+
+  if (rc != SQLITE_OK)
+  {
+    fprintf(stderr, "SQL error: %s\n", zErrMsg);
+    sqlite3_free(zErrMsg);
+    return false;
+  }
+
+  sqlite3_close(db);
+  return true;
+}
+
+bool insert_sm_gvalues_db(nl::json attester_data)
+{
+  if (!attester_data.contains("sm_hash") || !attester_data.contains("uuid"))
+    return false;
+
+  std::string uuid = attester_data["uuid"].get<std::string>();
+  std::string sm_hash = attester_data["sm_hash"].get<std::string>();
+
+  sqlite3 *db;
+  char *zErrMsg = 0;
+  int rc;
+  std::string sql;
+
+  /* Open database */
+  rc = sqlite3_open("./db/gvalues.db", &db);
+
+  if (rc)
+  {
+    fprintf(stderr, "Can't open database: %s\n", sqlite3_errmsg(db));
+    return false;
+  }
+
+  sql = "INSERT INTO gvalues(attestor, enclave_hash, sm_hash, eapp) SELECT attestors.id, 'NONE', '" + sm_hash + "', -1 FROM attestors WHERE attestors.uuid = '" + uuid + "'";
+
+  /* Execute SQL statement */
+  rc = sqlite3_exec(db, sql.c_str(), nullptr, nullptr, &zErrMsg);
+
+  if (rc != SQLITE_OK)
+  {
+    fprintf(stderr, "SQL error: %s\n", zErrMsg);
+    sqlite3_free(zErrMsg);
+    return false;
+  }
+
+  sqlite3_close(db);
+  return true;
+}
+
+nl::json register_node_db(nl::json attester_data)
+{
+  if (!insert_attester_db(attester_data) || !insert_sm_gvalues_db(attester_data))
+  {
+    return {{"Error", "Internal Server Error"}, {"Code", "500"}};
+  } else return {{"Message", "Node Correctly Registered"}, {"Code", "200"}}; 
+}
+
+/*int main(int argc, char *argv[])
 {
 
 
@@ -387,7 +474,7 @@ int main(int argc, char *argv[])
       printf("\nUnable create a socket with %s, updating the status and passing to next attester\n", attesters[i].hostname);
       update_status_and_timestamp(true, "NO_CONNECTION", attesters[i].id);
     }
-    else 
+    else
     {
       if (!init_wolfSSL())
       {
@@ -439,7 +526,7 @@ int main(int argc, char *argv[])
 
       printf("\nTrying to send close connection message to the attester. . .\n");
       send_buffer((byte *)"CLOSE", strlen("CLOSE"));
- 
+
       printf("\nTrying to close TLS connection. . .\n");
       close_wolfSSL(); // Closing the TLS connection
     }
@@ -448,4 +535,4 @@ int main(int argc, char *argv[])
   }
 
   return 0;
-}
+}*/
