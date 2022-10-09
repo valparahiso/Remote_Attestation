@@ -30,11 +30,18 @@ def post():
         return {"Error": j["Error"]}, j["Code"]
     return j
 
-@app.route("/eapp_register", methods=["POST"],  endpoint='eapp_register')
+@app.route("/developer_register", methods=["POST"],  endpoint='developer_register')
 def post():
     j = registrar.register_eapp(json.loads(request.data.decode('UTF-8')))
     if "Error" in j.keys():
         return {"Error": j["Error"]}, j["Code"] 
+    return j
+
+@app.route("/developer_accept", methods=["POST"], endpoint='developer_accept')
+def post():
+    j = registrar.accept_eapp(json.loads(request.data.decode('UTF-8')))
+    if "Error" in j.keys():
+        return {"Error": j["Error"]}, j["Code"]
     return j
 
 if __name__ == "__main__":

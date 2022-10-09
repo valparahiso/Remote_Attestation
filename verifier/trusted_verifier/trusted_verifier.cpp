@@ -1,9 +1,7 @@
 #include <string.h>
-#include "trusted_verifier.h"
-#include "verifier.h"
+#include "trusted_verifier.hpp"
+#include "verifier_db_op.hpp"
 
-#include "enclave_expected_hash.h"
-#include "sm_expected_hash.h"
 #include <sqlite3.h>
 #include <time.h>
 
@@ -190,7 +188,7 @@ void update_status_and_timestamp(bool attester, char *status, int id)
   tm_info = localtime(&timer);
 
   strftime(timestamp, 26, "%Y-%m-%d %H:%M:%S", tm_info);
- 
+
   /* Open database */
   rc = sqlite3_open("../db/gvalues.db", &db);
 
@@ -227,12 +225,12 @@ void trusted_verifier_exit()
   {
     double_fault = 1;
     printf(" Exiting. Attempting clean remote shutdown.\n");
-    send_exit_message();
+    //send_exit_message();
     exit(0);
   }
 }
 
-void trusted_verifier_init()
+/*void trusted_verifier_init()
 {
   int ret = 0;
   if (!libsodium_init)
@@ -252,7 +250,7 @@ void trusted_verifier_init()
   }
 
   channel_ready = 0;
-}
+}*/
 
 byte *trusted_verifier_pubkey(size_t *len)
 {
@@ -287,8 +285,8 @@ bool verify_data_section(Report report)
 bool trusted_verifier_attest_report(unsigned char *buffer, size_t report_size, int attester_id, int eapp_id)
 {
   printf("\nTrying to decrypt with session keys the received report. . .\n");
-  if(!trusted_verifier_unbox(buffer, report_size))
-    return false;
+  /*if (!trusted_verifier_unbox(buffer, report_size))
+    return false;*/
 
   Report report;
   report.fromBytes(buffer);
@@ -321,7 +319,7 @@ bool trusted_verifier_attest_report(unsigned char *buffer, size_t report_size, i
   else
   {
     printf("Attestation report is NOT valid\n");
-    update_status_and_timestamp(false, "INVALID", eapp_id); 
+    update_status_and_timestamp(false, "INVALID", eapp_id);
   }
 
   return true;
@@ -330,7 +328,7 @@ bool trusted_verifier_attest_report(unsigned char *buffer, size_t report_size, i
 #define MSG_BLOCKSIZE 32
 #define BLOCK_UP(len) (len + (MSG_BLOCKSIZE - (len % MSG_BLOCKSIZE)))
 
-byte *trusted_verifier_box(byte *msg, size_t size, size_t *finalsize)
+/*byte *trusted_verifier_box(byte *msg, size_t size, size_t *finalsize)
 {
   size_t size_padded = BLOCK_UP(size);
   *finalsize = size_padded + crypto_secretbox_MACBYTES + crypto_secretbox_NONCEBYTES;
@@ -361,9 +359,9 @@ byte *trusted_verifier_box(byte *msg, size_t size, size_t *finalsize)
 
   printf("Message correctly encrypted\n");
   return (buffer);
-}
+}*/
 
-bool trusted_verifier_unbox(unsigned char *buffer, size_t len)
+/*bool trusted_verifier_unbox(unsigned char *buffer, size_t len)
 {
   size_t clen = len - crypto_secretbox_NONCEBYTES;
   unsigned char *nonceptr = &(buffer[clen]);
@@ -385,7 +383,7 @@ bool trusted_verifier_unbox(unsigned char *buffer, size_t len)
   printf("Message correctly decrypted\n");
 
   return true;
-}
+}*/
 
 bool exchange_keys_and_establish_channel()
 {
@@ -396,7 +394,7 @@ bool exchange_keys_and_establish_channel()
   printf("\nTrying to receive generated attester public key from the attester. . .\n");
   byte *attester_key = recv_buffer(&public_key_size);
 
-  if(!strcmp((char*) attester_key, "ERROR"))
+  if (!strcmp((char *)attester_key, "ERROR"))
     return false;
 
   if (public_key_size != crypto_kx_PUBLICKEYBYTES)
@@ -411,13 +409,12 @@ bool exchange_keys_and_establish_channel()
   }
 
   printf("\nTrying to generate session keys to establish an encrypted channel between eapp and verifier. . .\n");
-  channel_establish(); // generating encrypted channel from eapp to verifier
+  //channel_establish(); // generating encrypted channel from eapp to verifier
   return true;
 }
 
-void channel_establish()
+/*void channel_establish()
 {
-  /* Ask libsodium to generate session keys based on the recv'd pk */
   if (crypto_kx_client_session_keys(rx, tx, verifier_pk, verifier_sk, server_pk) != 0)
   {
     printf("Bad session key generation\n");
@@ -426,12 +423,12 @@ void channel_establish()
 
   printf("Session keys generated\n");
   channel_ready = 1;
-}
+}*/
 
 int trusted_verifier_read_reply(unsigned char *data, size_t len)
 {
 
-  trusted_verifier_unbox(data, len);
+  //trusted_verifier_unbox(data, len);
 
   int *replyval = (int *)data;
 
@@ -440,7 +437,7 @@ int trusted_verifier_read_reply(unsigned char *data, size_t len)
   return *replyval;
 }
 
-void send_exit_message()
+/*void send_exit_message()
 {
 
   size_t pt_size;
@@ -453,9 +450,9 @@ void send_exit_message()
 
   free(pt_msg);
   free(ct_msg);
-}
+}*/
 
-void send_wc_message(char *buffer)
+/*void send_wc_message(char *buffer)
 {
 
   size_t pt_size;
@@ -468,9 +465,9 @@ void send_wc_message(char *buffer)
 
   free(pt_msg);
   free(ct_msg);
-}
+}*/
 
-calc_message_t *generate_wc_message(char *buffer, size_t buffer_len, size_t *finalsize)
+/*calc_message_t *generate_wc_message(char *buffer, size_t buffer_len, size_t *finalsize)
 {
   calc_message_t *message_buffer = (calc_message_t *)malloc(buffer_len + sizeof(calc_message_t));
 
@@ -481,9 +478,9 @@ calc_message_t *generate_wc_message(char *buffer, size_t buffer_len, size_t *fin
   *finalsize = buffer_len + sizeof(calc_message_t);
 
   return message_buffer;
-}
+}*/
 
-calc_message_t *generate_exit_message(size_t *finalsize)
+/*calc_message_t *generate_exit_message(size_t *finalsize)
 {
 
   calc_message_t *message_buffer = (calc_message_t *)malloc(sizeof(calc_message_t));
@@ -493,7 +490,7 @@ calc_message_t *generate_exit_message(size_t *finalsize)
   *finalsize = sizeof(calc_message_t);
 
   return message_buffer;
-}
+}*/
 
 void send_nonce()
 {
@@ -501,7 +498,7 @@ void send_nonce()
   byte nonce_buffer[NONCE_SIZE];
   memset(nonce_buffer, 0, NONCE_SIZE);
 
-  randombytes_buf(nonce_buffer, NONCE_SIZE);
+  //randombytes_buf(nonce_buffer, NONCE_SIZE);
 
   printf("\n**********     Generated random nonce to avoid reply attacks:     **********\n");
   for (int i = 0; i < NONCE_SIZE; i++)
@@ -511,16 +508,16 @@ void send_nonce()
   printf("\n\n");
 
   memcpy(nonce, nonce_buffer, NONCE_SIZE);
-  calc_message_t *pt_msg = generate_wc_message((char *)nonce_buffer, NONCE_SIZE + 2, &pt_size);
+  // calc_message_t *pt_msg = generate_wc_message((char *)nonce_buffer, NONCE_SIZE + 2, &pt_size);
 
   size_t ct_size;
 
   printf("\nTrying to encrypt with session keys the generated nonce. . .\n");
-  byte *ct_msg = trusted_verifier_box((byte *)pt_msg, pt_size, &ct_size);
+  // byte *ct_msg = trusted_verifier_box((byte *)pt_msg, pt_size, &ct_size);
 
   printf("\nTrying to send the encrypted nonce. . .\n");
-  send_buffer(ct_msg, ct_size);
+  // send_buffer(ct_msg, ct_size);
 
-  free(pt_msg);
-  free(ct_msg);
+  // free(pt_msg);
+  // free(ct_msg);
 }
