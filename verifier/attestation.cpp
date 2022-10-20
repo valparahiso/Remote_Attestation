@@ -8,7 +8,7 @@
 #include <netdb.h>
 #include <unistd.h>
 #include "trusted_verifier.hpp"
-#include "verifier_db_op.hpp"
+#include "attestation.hpp"
 #include <wolfssl/options.h>
 #include <wolfssl/ssl.h>
 #include <sys/stat.h>
@@ -36,9 +36,9 @@ struct attester
 
 int fd_sock;
 byte local_buffer[BUFFERLEN];
-attester attesters[8]; // can contact 8 attesters
-int num_of_attesters = 0;
+attester my_attester;
 int num_of_eapps = 0;
+bool attester_exist = false;
 
 int connections;
 
@@ -46,7 +46,7 @@ int connections;
 WOLFSSL_CTX *ctx;
 WOLFSSL *ssl;
 
-void send_buffer(byte *buffer, size_t len)
+bool send_buffer(byte *buffer, size_t len)
 {
   /* Send the message to the server */
   if ((wolfSSL_write(ssl, &len, sizeof(size_t))) != sizeof(size_t))
@@ -56,7 +56,7 @@ void send_buffer(byte *buffer, size_t len)
     wolfSSL_CTX_free(ctx); /* Free the wolfSSL context object          */
     wolfSSL_Cleanup();     /* Cleanup the wolfSSL environment          */
     close(fd_sock);
-    exit(-1);
+    return false;
   }
 
   if ((wolfSSL_write(ssl, buffer, len)) != (int)len)
@@ -66,10 +66,11 @@ void send_buffer(byte *buffer, size_t len)
     wolfSSL_CTX_free(ctx); /* Free the wolfSSL context object          */
     wolfSSL_Cleanup();     /* Cleanup the wolfSSL environment          */
     close(fd_sock);
-    exit(-1);
+    return false;
   }
 
   printf("Message correctly sent");
+  return true;
 }
 
 byte *recv_buffer(size_t *len)
@@ -114,8 +115,7 @@ byte *recv_buffer(size_t *len)
   if ((size_t)n_read != reply_size)
   {
     printf("Bad message size\n");
-    // Shutdown
-    trusted_verifier_exit();
+    return (byte *)"ERROR";
   }
 
   *len = reply_size;
@@ -131,7 +131,7 @@ bool init_wolfSSL()
   {
     printf("ERROR: Failed to initialize the library\n");
     close(fd_sock);
-    exit(-1);
+    return false;
   }
 
   /* Create and initialize WOLFSSL_CTX */
@@ -139,18 +139,18 @@ bool init_wolfSSL()
   {
     printf("ERROR: failed to create WOLFSSL_CTX\n");
     close(fd_sock);
-    exit(-1);
+    return false;
   }
 
   /* Load client certificates into WOLFSSL_CTX */
-  if ((wolfSSL_CTX_load_verify_locations(ctx, "./certs/ca-cert.pem", NULL)) != SSL_SUCCESS)
+  if ((wolfSSL_CTX_load_verify_locations(ctx, "../certs/CA/ca-cert.pem", NULL)) != SSL_SUCCESS)
   {
     printf("ERROR: failed to load %s, please check the file.\n",
            "./certs/ca-cert.pem");
     wolfSSL_CTX_free(ctx); /* Free the wolfSSL context object          */
     wolfSSL_Cleanup();     /* Cleanup the wolfSSL environment          */
     close(fd_sock);
-    exit(-1);
+    return false;
   }
 
   /* Create a WOLFSSL object */
@@ -160,7 +160,7 @@ bool init_wolfSSL()
     wolfSSL_CTX_free(ctx); /* Free the wolfSSL context object          */
     wolfSSL_Cleanup();     /* Cleanup the wolfSSL environment          */
     close(fd_sock);
-    exit(-1);
+    return false;
   }
 
   /* Attach wolfSSL to the socket */
@@ -171,7 +171,7 @@ bool init_wolfSSL()
     wolfSSL_CTX_free(ctx); /* Free the wolfSSL context object          */
     wolfSSL_Cleanup();     /* Cleanup the wolfSSL environment          */
     close(fd_sock);
-    exit(-1);
+    return false;
   }
 
   /* Connect to wolfSSL on the server side */
@@ -218,7 +218,7 @@ void str_to_uint16(const char *str, uint16_t *res)
   return;
 }
 
-void connect_to_attester(char *hostname, uint16_t port)
+bool connect_to_attester(char *hostname, uint16_t port)
 {
   printf("\nTrying to connect to %s . . .\n", hostname);
   struct sockaddr_in server_addr;
@@ -227,14 +227,14 @@ void connect_to_attester(char *hostname, uint16_t port)
   if (fd_sock < 0)
   {
     printf("No socket\n");
-    return;
+    return false;
   }
 
   server = gethostbyname(hostname);
   if (server == NULL)
   {
     printf("Can't get host\n");
-    return;
+    return false;
   }
 
   server_addr.sin_family = AF_INET;
@@ -243,21 +243,23 @@ void connect_to_attester(char *hostname, uint16_t port)
   if (connect(fd_sock, (struct sockaddr *)&server_addr, sizeof(server_addr)) < 0)
   {
     printf("Can't connect\n");
-    return;
+    return false;
   }
 
   connections = 0;
   printf("Connected to %s\n", hostname);
+  return true;
 }
 
-static int get_attesters_callback(void *notUsed, int count, char **data, char **columns)
+static int get_attester_callback(void *notUsed, int count, char **data, char **columns)
 {
+  attester_exist = true;
   for (int idx = 0; idx < count; idx++)
   {
     if (!strcmp(columns[idx], "hostname"))
     {
       for (int i = 0; i < (int)strlen(data[idx]); i++)
-        attesters[num_of_attesters].hostname[i] = data[idx][i];
+        my_attester.hostname[i] = data[idx][i];
     }
     else if (!strcmp(columns[idx], "port"))
     {
@@ -265,62 +267,61 @@ static int get_attesters_callback(void *notUsed, int count, char **data, char **
       uint16_t port_uint16;
 
       str_to_uint16(port_str, &port_uint16);
-      attesters[num_of_attesters].port = port_uint16;
+      my_attester.port = port_uint16;
     }
     else if (!strcmp(columns[idx], "id"))
     {
-      attesters[num_of_attesters].id = atoi(data[idx]);
+      my_attester.id = atoi(data[idx]);
     }
   }
 
-  num_of_attesters++;
   return 0;
 }
 
-void get_attesters()
+bool get_attester(std::string uuid)
 {
   sqlite3 *db;
   char *zErrMsg = 0;
   int rc;
-
+  std::string sql = "SELECT id, hostname, port from attestors WHERE uuid='" + uuid + "'";
+  attester_exist = false;
   /* Open database */
-  rc = sqlite3_open("../db/gvalues.db", &db);
+  rc = sqlite3_open("./db/gvalues.db", &db);
 
   if (rc)
   {
     fprintf(stderr, "Can't open database: %s\n", sqlite3_errmsg(db));
-    return;
+    return false;
   }
 
   /* Execute SQL statement */
-  rc = sqlite3_exec(db, "SELECT id, hostname, port from attestors", get_attesters_callback, NULL, &zErrMsg);
+  rc = sqlite3_exec(db, sql.c_str(), get_attester_callback, NULL, &zErrMsg);
 
   if (rc != SQLITE_OK)
   {
     fprintf(stderr, "SQL error: %s\n", zErrMsg);
     sqlite3_free(zErrMsg);
+    return false;
   }
 
   sqlite3_close(db);
-  return;
+  return attester_exist;
 }
 
-static int get_eapps_callback(void *i, int count, char **data, char **columns)
+static int get_eapps_callback(void *notUsed, int count, char **data, char **columns)
 {
   for (int idx = 0; idx < count; idx++)
   {
     if (!strcmp(columns[idx], "path"))
     {
-      int index = *(int *)i;
       for (int j = 0; j < (int)strlen(data[idx]); j++)
-        attesters[index].eapps[num_of_eapps].eapp_path[j] = data[idx][j];
+        my_attester.eapps[num_of_eapps].eapp_path[j] = data[idx][j];
 
-      attesters[index].eapps[num_of_eapps].eapp_path[strlen(data[idx])] = '\0';
+      my_attester.eapps[num_of_eapps].eapp_path[strlen(data[idx])] = '\0';
     }
     else if (!strcmp(columns[idx], "id"))
     {
-      int index = *(int *)i;
-      attesters[index].eapps[num_of_eapps].id = atoi(data[idx]);
+      my_attester.eapps[num_of_eapps].id = atoi(data[idx]);
     }
   }
 
@@ -329,7 +330,7 @@ static int get_eapps_callback(void *i, int count, char **data, char **columns)
   return 0;
 }
 
-void get_eapps(int id, int i)
+bool get_eapps(int id)
 {
   sqlite3 *db;
   char *zErrMsg = 0;
@@ -337,31 +338,119 @@ void get_eapps(int id, int i)
   char sql[256];
 
   /* Open database */
-  rc = sqlite3_open("../db/gvalues.db", &db);
+  rc = sqlite3_open("./db/gvalues.db", &db);
 
   if (rc)
   {
     fprintf(stderr, "Can't open database: %s\n", sqlite3_errmsg(db));
-    return;
+    return false;
   }
 
   /* Create SQL statement */
   sprintf(sql, "SELECT path, id from eapps WHERE attestor=%d", id);
 
   /* Execute SQL statement */
-  rc = sqlite3_exec(db, sql, get_eapps_callback, &i, &zErrMsg);
+  rc = sqlite3_exec(db, sql, get_eapps_callback, nullptr, &zErrMsg);
 
   if (rc != SQLITE_OK)
   {
     fprintf(stderr, "SQL error: %s\n", zErrMsg);
     sqlite3_free(zErrMsg);
+    return false;
   }
 
   sqlite3_close(db);
-  return;
+  return true;
 }
 
+nl::json attest_node_db(const std::string uuid)
+{
+  nl::json bad_res = {{"Error", "Internal Server Error"}, {"Code", "500"}};
+  if (!get_attester(uuid) || !get_eapps(my_attester.id)) // get eapps to attest
+  {
+    return bad_res;
+  }
 
+  for (int i = 0; i < NUMCONNECTION; i++)
+  {
+    bool connected = connect_to_attester(my_attester.hostname, my_attester.port);
+    if (connected)
+      break;
+    else if (i == NUMCONNECTION - 1)
+    {
+      printf("\nUnable create a socket with %s, updating the status and passing to next attester\n", my_attester.hostname);
+      update_status_and_timestamp(true, "NO_CONNECTION", my_attester.id);
+      return bad_res;
+    }
+  }
+
+  if (!init_wolfSSL())
+  {
+    printf("Unable to set up a TLS connection with %s, updating the status and passing to next attester\n");
+    update_status_and_timestamp(true, "NO_TLS_CONNECTION", my_attester.id);
+    return bad_res;
+  }
+
+  if (!update_status_and_timestamp(true, "TLS_CONNECTION", my_attester.id))
+  {
+    return bad_res;
+  }
+
+  // trusted_verifier_init(); // Generate verifier keypair using libsodium
+
+  for (int j = 0; j < num_of_eapps; j++)
+  {
+    printf("\nTrying to send eapp path to attest. . .\n");
+    if (!send_buffer((byte *)my_attester.eapps[j].eapp_path, strlen(my_attester.eapps[j].eapp_path)))
+    {
+      return bad_res;
+    }
+
+    printf("\nStarting attesting the eapp with path %s. . .\n", my_attester.eapps[j].eapp_path);
+
+    /*if (!exchange_keys_and_establish_channel()) // Send verifier pubkey, and receive attester pubkey to establish an encrypted channel
+    {
+      printf("Passing to the next eapp\n");
+      update_status_and_timestamp(false, "VALIDATION_ERROR", my_attester.eapps[j].id);
+      continue;
+    }*/
+
+    if(!send_nonce()) // Send nonce to avoid reply attacks
+    {
+      return bad_res;
+    }
+
+    printf("\nTrying to receive report from the attester. . .\n");
+    size_t report_size;
+    byte *report_buffer = recv_buffer(&report_size); // Get report from the attester
+
+    if (!strcmp((char *)report_buffer, "ERROR"))
+    {
+      printf("Passing to the next eapp\n");
+      update_status_and_timestamp(false, "VALIDATION_ERROR", my_attester.eapps[j].id);
+      continue;
+    }
+
+    if (!trusted_verifier_attest_report(report_buffer, report_size, my_attester.id, my_attester.eapps[j].id))
+    { // Decrypt and attest the received report
+      printf("Passing to the next eapp\n");
+      update_status_and_timestamp(false, "VALIDATION_ERROR", my_attester.eapps[j].id);
+      free(report_buffer);
+      continue;
+    }
+
+    free(report_buffer);
+  }
+
+  printf("\nTrying to send close connection message to the attester. . .\n");
+  send_buffer((byte *)"CLOSE", strlen("CLOSE"));
+
+  printf("\nTrying to close TLS connection. . .\n");
+  close_wolfSSL(); // Closing the TLS connection
+
+  return {{"Message", "Node Correctly Attested, Chek Logs in Verifier DB"}, {"Code", "200"}};
+
+}
 
 /*int main(int argc, char *argv[])
 {

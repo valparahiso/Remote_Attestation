@@ -2,12 +2,11 @@
 
 
 read -p "1. Compilo il verifier . . . Press any key to continue . . . " -n1 -s 
-mkdir -p verifier/build
-cd verifier/trusted_verifier
+cd verifier
 make
 
 read -p "2. Compilo l'attester . . . Press any key to continue . . . " -n1 -s
-cd ../../attester
+cd ../attester
 ./start_server.sh
 
 read -p "3. Copio il file generato in qemu . . . Press any key to continue . . " -n1 -s

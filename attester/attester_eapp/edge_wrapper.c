@@ -41,6 +41,12 @@ void ocall_wait_for_message(struct edge_data *msg)
   ocall(OCALL_WAIT_FOR_MESSAGE, NULL, 0, msg, sizeof(struct edge_data));
 }
 
+
+void ocall_wait_for_nonce(unsigned char *nonce, size_t len)
+{
+  ocall(OCALL_WAIT_FOR_CLIENT_PUBKEY, NULL, 0, nonce, len);
+}
+
 void ocall_wait_for_client_pubkey(unsigned char *pk, size_t len)
 {
   ocall(OCALL_WAIT_FOR_CLIENT_PUBKEY, NULL, 0, pk, len);

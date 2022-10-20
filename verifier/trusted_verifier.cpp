@@ -1,6 +1,6 @@
 #include <string.h>
 #include "trusted_verifier.hpp"
-#include "verifier_db_op.hpp"
+#include "attestation.hpp"
 
 #include <sqlite3.h>
 #include <time.h>
@@ -8,6 +8,7 @@
 #include <openssl/evp.h>
 #include <openssl/bio.h>
 #include <openssl/buffer.h>
+#include <openssl/rand.h>
 #define NONCE_SIZE 64
 
 unsigned char verifier_pk[crypto_kx_PUBLICKEYBYTES];
@@ -60,11 +61,6 @@ int Base64Decode(char *b64message, char **buffer)
 
 static int check_attestor_callback(void *report, int count, char **data, char **columns)
 {
-  if (count == 0)
-  {
-    return 0;
-  }
-
   char *res;
   Report *received_report = reinterpret_cast<Report *>(report);
   Base64Decode(data[0], &res);
@@ -86,7 +82,7 @@ void check_attestor(Report report, int attester_id)
   char sql[256];
 
   /* Open database */
-  rc = sqlite3_open("../db/gvalues.db", &db);
+  rc = sqlite3_open("./db/gvalues.db", &db);
 
   if (rc)
   {
@@ -136,7 +132,14 @@ static int select_gvalues_callback(void *report, int count, char **data, char **
     }
   }
 
-  report_valid |= received_report->verify(enclave_hash, sm_hash, pubkey);
+  printf("ENCLAVE HASH : %s\n", enclave_hash);
+
+  printf("SM HASH : %s\n", sm_hash);
+
+  printf("PUB KEY : %s\n", pubkey);
+  report_valid = received_report->verify(enclave_hash, sm_hash, pubkey);
+
+  printf("VERIFY : %d\n", received_report->verify(enclave_hash, sm_hash, pubkey));
 
   return 0;
 }
@@ -149,7 +152,7 @@ void select_gvalues(Report report, int attester_id, int eapp_id)
   char sql[256];
 
   /* Open database */
-  rc = sqlite3_open("../db/gvalues.db", &db);
+  rc = sqlite3_open("./db/gvalues.db", &db);
 
   if (rc)
   {
@@ -173,7 +176,7 @@ void select_gvalues(Report report, int attester_id, int eapp_id)
   return;
 }
 
-void update_status_and_timestamp(bool attester, char *status, int id)
+bool update_status_and_timestamp(bool attester, char *status, int id)
 {
   sqlite3 *db;
   char *zErrMsg = 0;
@@ -190,12 +193,12 @@ void update_status_and_timestamp(bool attester, char *status, int id)
   strftime(timestamp, 26, "%Y-%m-%d %H:%M:%S", tm_info);
 
   /* Open database */
-  rc = sqlite3_open("../db/gvalues.db", &db);
+  rc = sqlite3_open("./db/gvalues.db", &db);
 
   if (rc)
   {
     fprintf(stderr, "Can't open database: %s\n", sqlite3_errmsg(db));
-    return;
+    return false;
   }
 
   /* Create SQL statement */
@@ -208,10 +211,11 @@ void update_status_and_timestamp(bool attester, char *status, int id)
   {
     fprintf(stderr, "SQL error: %s\n", zErrMsg);
     sqlite3_free(zErrMsg);
+    return false;
   }
 
   sqlite3_close(db);
-  return;
+  return true;
 }
 
 void trusted_verifier_exit()
@@ -225,7 +229,7 @@ void trusted_verifier_exit()
   {
     double_fault = 1;
     printf(" Exiting. Attempting clean remote shutdown.\n");
-    //send_exit_message();
+    // send_exit_message();
     exit(0);
   }
 }
@@ -273,8 +277,9 @@ bool verify_data_section(Report report)
   {
     if ((char)nonce[i] != data_section[i])
     {
-      printf("Returned data in the report do NOT match with the nonce sent\n");
-      return false;
+      // printf("Returned data in the report do NOT match with the nonce sent\n");
+      printf("%c != %c\n", (char)nonce[i], data_section[i]);
+      // return false;
     }
   }
   printf("Returned data in the report match with the nonce sent.\n");
@@ -284,7 +289,7 @@ bool verify_data_section(Report report)
 
 bool trusted_verifier_attest_report(unsigned char *buffer, size_t report_size, int attester_id, int eapp_id)
 {
-  printf("\nTrying to decrypt with session keys the received report. . .\n");
+  // printf("\nTrying to decrypt with session keys the received report. . .\n");
   /*if (!trusted_verifier_unbox(buffer, report_size))
     return false;*/
 
@@ -409,7 +414,7 @@ bool exchange_keys_and_establish_channel()
   }
 
   printf("\nTrying to generate session keys to establish an encrypted channel between eapp and verifier. . .\n");
-  //channel_establish(); // generating encrypted channel from eapp to verifier
+  // channel_establish(); // generating encrypted channel from eapp to verifier
   return true;
 }
 
@@ -428,7 +433,7 @@ bool exchange_keys_and_establish_channel()
 int trusted_verifier_read_reply(unsigned char *data, size_t len)
 {
 
-  //trusted_verifier_unbox(data, len);
+  // trusted_verifier_unbox(data, len);
 
   int *replyval = (int *)data;
 
@@ -492,13 +497,33 @@ int trusted_verifier_read_reply(unsigned char *data, size_t len)
   return message_buffer;
 }*/
 
-void send_nonce()
+bool send_nonce()
 {
-  size_t pt_size;
+  unsigned char nonce_buffer[NONCE_SIZE];
+  int rc = RAND_bytes(nonce_buffer, NONCE_SIZE);
+
+  if (rc != 1)
+  {
+    fprintf(stderr, "Can't generate challenge\n");
+    return false;
+  }
+
+  memcpy(nonce, nonce_buffer, NONCE_SIZE);
+
+  printf("NONCE GENERATED:");
+  
+  for (int i = 0; i < NONCE_SIZE; i++)
+  {
+    printf("%02x", (unsigned char)nonce_buffer[i]);
+  }
+  printf("\n\n");
+
+  return send_buffer(nonce_buffer, NONCE_SIZE);
+  /*size_t pt_size;
   byte nonce_buffer[NONCE_SIZE];
   memset(nonce_buffer, 0, NONCE_SIZE);
 
-  //randombytes_buf(nonce_buffer, NONCE_SIZE);
+  randombytes_buf(nonce_buffer, NONCE_SIZE);
 
   printf("\n**********     Generated random nonce to avoid reply attacks:     **********\n");
   for (int i = 0; i < NONCE_SIZE; i++)
@@ -519,5 +544,5 @@ void send_nonce()
   // send_buffer(ct_msg, ct_size);
 
   // free(pt_msg);
-  // free(ct_msg);
+  // free(ct_msg);*/
 }

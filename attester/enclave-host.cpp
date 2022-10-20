@@ -73,6 +73,7 @@ byte *recv_buffer(size_t *len)
   // read(fd_clientsock, reply, reply_size);
   *len = reply_size;
   reply[reply_size] = '\0';
+
   printf("[Enclave Host] Message correctly received from the verifier");
 
   return reply;
@@ -265,9 +266,10 @@ int main(int argc, char **argv)
     size_t len;
     char *eapp_path = (char *)recv_buffer(&len);
 
-    if(!strcmp(eapp_path, "CLOSE")){
+    if (!strcmp(eapp_path, "CLOSE"))
+    {
       printf("\n[Enclave Host] Received closing message, exiting . . .\n");
-      return 0; 
+      return 0;
     }
 
     Keystone::Enclave enclave;
@@ -276,7 +278,7 @@ int main(int argc, char **argv)
     if (enclave.init(eapp_path, runtime_path, params) != Keystone::Error::Success)
     {
       printf("[Enclave Host] Unable to start enclave\n");
-      exit(-1);
+      continue;
     }
 
     printf("\n[Enclave Host] Starting the enclave . . .\n");

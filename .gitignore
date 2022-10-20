@@ -364,11 +364,11 @@ registrar/venv/
 registrar/certs/
 registrar/registrar.cpython-38-x86_64-linux-gnu.so
 registrar/pybind/
-verifier_2/pybind
-verifier_2/verifier.cpython-38-x86_64-linux-gnu.so
-verifier_2/__pycache__/
-verifier_2/venv/
-verifier_2/certs/
+verifier/pybind
+verifier/verifier.cpython-38-x86_64-linux-gnu.so
+verifier/__pycache__/
+verifier/venv/
+verifier/certs/
 
 
 
