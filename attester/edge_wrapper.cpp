@@ -168,7 +168,7 @@ void wait_for_client_pubkey_wrapper(void *buffer)
   // TODO safety check?
   uintptr_t data_section = edge_call_data_ptr();
 
-  memcpy((void *)data_section, pubkey, crypto_kx_PUBLICKEYBYTES);
+  memcpy((void *)data_section, pubkey, 64);
 
   if (edge_call_setup_ret(edge_call, (void *)data_section, sizeof(unsigned long)))
   {

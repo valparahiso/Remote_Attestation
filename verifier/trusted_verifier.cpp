@@ -144,7 +144,7 @@ static int select_gvalues_callback(void *report, int count, char **data, char **
   return 0;
 }
 
-void select_gvalues(Report report, int attester_id, int eapp_id)
+bool select_gvalues(Report report, int attester_id, int eapp_id)
 {
   sqlite3 *db;
   char *zErrMsg = 0;
@@ -157,12 +157,14 @@ void select_gvalues(Report report, int attester_id, int eapp_id)
   if (rc)
   {
     fprintf(stderr, "Can't open database: %s\n", sqlite3_errmsg(db));
-    return;
+    return false;
   }
 
   /* Create SQL statement */
   sprintf(sql, "SELECT COUNT(*), G.enclave_hash, G.sm_hash, A.pubkey FROM gvalues AS G, attestors AS A WHERE G.attestor=A.id AND G.attestor=%d AND G.eapp=%d", attester_id, eapp_id);
 
+  printf("sql: %s\n", sql);
+  
   /* Execute SQL statement */
   rc = sqlite3_exec(db, sql, select_gvalues_callback, &report, &zErrMsg);
 
@@ -170,10 +172,11 @@ void select_gvalues(Report report, int attester_id, int eapp_id)
   {
     fprintf(stderr, "SQL error: %s\n", zErrMsg);
     sqlite3_free(zErrMsg);
+    return false;
   }
 
   sqlite3_close(db);
-  return;
+  return true;
 }
 
 bool update_status_and_timestamp(bool attester, char *status, int id)
@@ -313,7 +316,11 @@ bool trusted_verifier_attest_report(unsigned char *buffer, size_t report_size, i
   printf("Server public key is in the whitelist, proceeding validating report\n");
   attestor_valid = false;
 
-  select_gvalues(report, attester_id, eapp_id);
+  if(!select_gvalues(report, attester_id, eapp_id))
+  {
+    return false;
+  }
+
 
   if (report_valid && verify_data_section(report))
   {

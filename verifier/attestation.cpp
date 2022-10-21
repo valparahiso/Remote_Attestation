@@ -336,6 +336,7 @@ bool get_eapps(int id)
   char *zErrMsg = 0;
   int rc;
   char sql[256];
+  num_of_eapps = 0;
 
   /* Open database */
   rc = sqlite3_open("./db/gvalues.db", &db);
@@ -348,6 +349,7 @@ bool get_eapps(int id)
 
   /* Create SQL statement */
   sprintf(sql, "SELECT path, id from eapps WHERE attestor=%d", id);
+  printf("sql: %s", sql);
 
   /* Execute SQL statement */
   rc = sqlite3_exec(db, sql, get_eapps_callback, nullptr, &zErrMsg);
