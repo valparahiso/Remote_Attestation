@@ -148,11 +148,11 @@ void EAPP_ENTRY eapp_entry()
 
   // channel_establish(); // once we have exchanged keys we can establish encrypted channel
 
-  // read_nonce(); // get the nonce from the verifier
+  read_nonce(); // get the nonce from the verifier
 
-  // generate_and_send_attestation_report(); // generate and send the quote
+  generate_and_send_attestation_report(); // generate and send the quote
 
-  // handle_messages();
+  // handle_messages(); 
 
   while (1)
   {

@@ -24,6 +24,7 @@ struct eapp
 {
   int id;
   char eapp_path[32];
+  uint16_t port;
 };
 
 struct attester
@@ -323,6 +324,14 @@ static int get_eapps_callback(void *notUsed, int count, char **data, char **colu
     {
       my_attester.eapps[num_of_eapps].id = atoi(data[idx]);
     }
+    else if (!strcmp(columns[idx], "port"))
+    {
+      char *port_str = data[idx];
+      uint16_t port_uint16;
+
+      str_to_uint16(port_str, &port_uint16);
+      my_attester.eapps[num_of_eapps].port = port_uint16;
+    }
   }
 
   num_of_eapps++;
@@ -348,7 +357,7 @@ bool get_eapps(int id)
   }
 
   /* Create SQL statement */
-  sprintf(sql, "SELECT path, id from eapps WHERE attestor=%d", id);
+  sprintf(sql, "SELECT path, id, port from eapps WHERE attestor=%d", id);
   printf("sql: %s", sql);
 
   /* Execute SQL statement */
@@ -373,42 +382,45 @@ nl::json attest_node_db(const std::string uuid)
     return bad_res;
   }
 
-  for (int i = 0; i < NUMCONNECTION; i++)
+  for (int q = 0; q < num_of_eapps; q++)
   {
-    bool connected = connect_to_attester(my_attester.hostname, my_attester.port);
-    if (connected)
-      break;
-    else if (i == NUMCONNECTION - 1)
+
+    for (int i = 0; i < NUMCONNECTION; i++)
     {
-      printf("\nUnable create a socket with %s, updating the status and passing to next attester\n", my_attester.hostname);
-      update_status_and_timestamp(true, "NO_CONNECTION", my_attester.id);
+      bool connected = connect_to_attester(my_attester.hostname, my_attester.eapps[q].port);
+      if (connected)
+        break;
+      else if (i == NUMCONNECTION - 1)
+      {
+        printf("\nUnable create a socket with %s, updating the status\n", my_attester.hostname);
+        update_status_and_timestamp(true, "NO_CONNECTION", my_attester.id);
+        return bad_res;
+      }
+    }
+
+    if (!init_wolfSSL())
+    {
+      printf("Unable to set up a TLS connection with %s, updating the status and passing to next attester\n");
+      update_status_and_timestamp(true, "NO_TLS_CONNECTION", my_attester.id);
       return bad_res;
     }
-  }
 
-  if (!init_wolfSSL())
-  {
-    printf("Unable to set up a TLS connection with %s, updating the status and passing to next attester\n");
-    update_status_and_timestamp(true, "NO_TLS_CONNECTION", my_attester.id);
-    return bad_res;
-  }
+    if (!update_status_and_timestamp(true, "TLS_CONNECTION", my_attester.id))
+    {
+      return bad_res;
+    }
 
-  if (!update_status_and_timestamp(true, "TLS_CONNECTION", my_attester.id))
-  {
-    return bad_res;
-  }
+    // trusted_verifier_init(); // Generate verifier keypair using libsodium
 
-  // trusted_verifier_init(); // Generate verifier keypair using libsodium
-
-  for (int j = 0; j < num_of_eapps; j++)
-  {
+    // for (int j = 0; j < num_of_eapps; j++)
+    //{
     printf("\nTrying to send eapp path to attest. . .\n");
-    if (!send_buffer((byte *)my_attester.eapps[j].eapp_path, strlen(my_attester.eapps[j].eapp_path)))
+    if (!send_buffer((byte *)my_attester.eapps[q].eapp_path, strlen(my_attester.eapps[q].eapp_path)))
     {
       return bad_res;
     }
 
-    printf("\nStarting attesting the eapp with path %s. . .\n", my_attester.eapps[j].eapp_path);
+    printf("\nStarting attesting the eapp with path %s. . .\n", my_attester.eapps[q].eapp_path);
 
     /*if (!exchange_keys_and_establish_channel()) // Send verifier pubkey, and receive attester pubkey to establish an encrypted channel
     {
@@ -417,7 +429,7 @@ nl::json attest_node_db(const std::string uuid)
       continue;
     }*/
 
-    if(!send_nonce()) // Send nonce to avoid reply attacks
+    if (!send_nonce()) // Send nonce to avoid reply attacks
     {
       return bad_res;
     }
@@ -429,29 +441,29 @@ nl::json attest_node_db(const std::string uuid)
     if (!strcmp((char *)report_buffer, "ERROR"))
     {
       printf("Passing to the next eapp\n");
-      update_status_and_timestamp(false, "VALIDATION_ERROR", my_attester.eapps[j].id);
+      update_status_and_timestamp(false, "VALIDATION_ERROR", my_attester.eapps[q].id);
       continue;
     }
 
-    if (!trusted_verifier_attest_report(report_buffer, report_size, my_attester.id, my_attester.eapps[j].id))
+    if (!trusted_verifier_attest_report(report_buffer, report_size, my_attester.id, my_attester.eapps[q].id))
     { // Decrypt and attest the received report
       printf("Passing to the next eapp\n");
-      update_status_and_timestamp(false, "VALIDATION_ERROR", my_attester.eapps[j].id);
+      update_status_and_timestamp(false, "VALIDATION_ERROR", my_attester.eapps[q].id);
       free(report_buffer);
       continue;
     }
 
     free(report_buffer);
+    //}
+
+    printf("\nTrying to send close connection message to the attester. . .\n");
+    send_buffer((byte *)"CLOSE", strlen("CLOSE"));
+
+    printf("\nTrying to close TLS connection. . .\n");
+    close_wolfSSL(); // Closing the TLS connection 
   }
 
-  printf("\nTrying to send close connection message to the attester. . .\n");
-  send_buffer((byte *)"CLOSE", strlen("CLOSE"));
-
-  printf("\nTrying to close TLS connection. . .\n");
-  close_wolfSSL(); // Closing the TLS connection
-
   return {{"Message", "Node Correctly Attested, Chek Logs in Verifier DB"}, {"Code", "200"}};
-
 }
 
 /*int main(int argc, char *argv[])
