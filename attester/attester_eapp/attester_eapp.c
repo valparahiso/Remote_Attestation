@@ -38,7 +38,7 @@ void read_nonce()
   }*/
 
   ocall_print_buffer("NONCE RECEIVED:\n");
-  ocall_print_buffer((char*)nonce_no_reply);
+  ocall_print_buffer((char *)nonce_no_reply);
 }
 
 void generate_and_send_attestation_report()
@@ -148,11 +148,16 @@ void EAPP_ENTRY eapp_entry()
 
   // channel_establish(); // once we have exchanged keys we can establish encrypted channel
 
-  read_nonce(); // get the nonce from the verifier
+  // read_nonce(); // get the nonce from the verifier
 
-  generate_and_send_attestation_report(); // generate and send the quote
+  // generate_and_send_attestation_report(); // generate and send the quote
 
   // handle_messages();
+
+  while (1)
+  {
+    
+  }
 
   EAPP_RETURN(0);
 }

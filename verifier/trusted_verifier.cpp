@@ -125,6 +125,7 @@ static int select_gvalues_callback(void *report, int count, char **data, char **
     else if (!strcmp(columns[idx], "enclave_hash"))
     {
       enclave_hash = (unsigned char *)res;
+      printf("E: %s\n", data[idx]);
     }
     else if (!strcmp(columns[idx], "pubkey"))
     {

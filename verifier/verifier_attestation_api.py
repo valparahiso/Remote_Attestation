@@ -2,7 +2,7 @@ from crypt import methods
 import ssl
 import os
 import verifier
-import json
+import datetime
 
 from flask import Flask, request
 
@@ -19,7 +19,9 @@ ssl_ctx.load_cert_chain(CERT_FILE, KEY_FILE, "verifier")
  
 @app.route("/attest_node", methods=["GET"], endpoint="/attest_node") 
 def post():
+    now = datetime.datetime.now()
     j = verifier.attest_node(request.args.get('uuid', default = '-1', type = str))  
+    print(datetime.datetime.now() - now)
     if "Error" in j.keys():
         return {"Error": j["Error"]}, j["Code"]
     return j

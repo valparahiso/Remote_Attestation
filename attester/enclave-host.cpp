@@ -256,11 +256,11 @@ void close_wolfSSL()
 int main(int argc, char **argv)
 {
   /* Wait for network connection */
-  init_network_wait();
+  // init_network_wait();
 
-  init_wolfSSL();
+  // init_wolfSSL();
 
-  while (1)
+  /*while (1)
   {
     printf("\n[Enclave Host] Trying to receive the eapp path to attest . . .\n");
     size_t len;
@@ -286,6 +286,22 @@ int main(int argc, char **argv)
 
     Keystone::Error rval = enclave.run();
     printf("[Enclave Host] Enclave returned: %i\n", rval);
+  }*/
+
+  Keystone::Enclave enclave;
+  Keystone::Params params;
+
+  if (enclave.init(enc_path, runtime_path, params) != Keystone::Error::Success) 
+  {
+    printf("[Enclave Host] Unable to start enclave\n");
+    return 1;
   }
+
+  printf("\n[Enclave Host] Starting the enclave . . .\n");
+  edge_init(&enclave);
+
+  Keystone::Error rval = enclave.run();
+  printf("[Enclave Host] Enclave returned: %i\n", rval);
+
   return 0;
 }

@@ -9,6 +9,7 @@
         "channel.h": "c",
         "*.tcc": "cpp",
         "encl_message.h": "c",
-        "cstddef": "c"
+        "cstddef": "c",
+        "time.h": "c"
     }
 }
