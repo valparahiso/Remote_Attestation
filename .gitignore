@@ -350,7 +350,26 @@ MigrationBackup/
 .ionide/
 
 #Added by dev
-server/build/
-client/build/
-server/libsodium_builds/
-client/libsodium_builds/
+attester/build/
+verifier/build/ 
+attester/libsodium_builds/
+verifier/libsodium_builds/
+attester/wolfssl/
+verifier/wolfssl/ 
+verifier/keystone_build/
+verifier/trusted_verifier/certs/
+attester/certs/
+registrar/__pycache__/
+registrar/venv/
+registrar/certs/
+registrar/registrar.cpython-38-x86_64-linux-gnu.so
+registrar/pybind/
+verifier/pybind
+verifier/verifier.cpython-38-x86_64-linux-gnu.so
+verifier/__pycache__/
+verifier/venv/
+verifier/certs/
+
+
+
+

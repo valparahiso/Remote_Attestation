@@ -1,0 +1,15 @@
+{
+    "files.associations": {
+        "sodium.h": "c",
+        "edge_wrapper.h": "c",
+        "malloc.h": "c",
+        "string.h": "c",
+        "calculator.h": "c",
+        "hacks.h": "c",
+        "channel.h": "c",
+        "*.tcc": "cpp",
+        "encl_message.h": "c",
+        "cstddef": "c",
+        "time.h": "c"
+    }
+}

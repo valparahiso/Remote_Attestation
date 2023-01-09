@@ -1,0 +1,285 @@
+
+IMPORTANT: It only works with Ubuntu 20.04 and previous versions
+
+-------------- KEYSTONE ENCLAVE --------------
+
+1. Intall dependencies:
+
+sudo apt update
+
+sudo apt install autoconf automake autotools-dev bc \
+bison build-essential curl expat libexpat1-dev flex gawk gcc git \
+gperf libgmp-dev libmpc-dev libmpfr-dev libtool texinfo tmux \
+patchutils zlib1g-dev wget bzip2 patch vim-common lbzip2 python \
+pkg-config libglib2.0-dev libpixman-1-dev libssl-dev screen \
+device-tree-compiler expect makeself unzip cpio rsync cmake p7zip-full
+
+ 
+2. Clone repository of edited keystone enclave (version with Secure Boot implemented)
+
+git clone https://github.com/valparahiso/keystone_edit.git
+
+
+3. Setup Keystone (install RISC-V toolchain, checkout git submodules, and Install SDK) 
+
+cd keystone_edit
+./fast_setup.sh
+source ./source.sh
+
+4. Build keystone components, 2 options:
+
+mkdir build
+cd build
+cmake ..
+make  
+
+
+Or, to build each component do, instead of make:
+
+make buildroot
+make qemu
+make linux
+make sm
+make bootrom
+make driver
+make tests
+
+
+-------------- VIRT KVM VMM QEMU --------------
+1. Check if CPU supports virtualization, outputu must be differnt from 0
+
+egrep -c '(vmx|svm)' /proc/cpuinfo
+
+2. Install KVM packages:
+
+sudo apt update
+sudo apt install qemu-kvm libvirt-daemon-system libvirt-clients bridge-utils qemu-system-misc
+
+
+3. Authorize users, change username with your username
+
+sudo adduser ‘username’ libvirt
+sudo adduser ‘username’ kvm
+
+4. Install Virtual Machine Manager
+
+sudo apt install virt-manager
+
+5. Create virtual machine riscv64 for attester
+
+sudo virt-manager
+
+Once open the application perform:
+File->New Virtual Machine 
+
+a) Importa immagine di un disco esistente 
+   Opzioni architettura: riscv64 -virt
+--> Avanti
+b) Percorso dello storage : path/to/keystone_edit/build/buildroot.build/images/rootfs.ext2
+   Percorso Kernel: /path/to/keystone_edit/build/sm.build/platform/generic/firmware/fw_payload.elf
+   Argomenti Kernel: console=ttyS0 ro root=/dev/vda
+   OS: Generic Default
+--> Avanti
+c) --> Avanti
+d) Chose a name
+   --> Fine
+   
+-------------- APP ARMOR -------------- 
+In order to edit the emulator in libvirt it's needed to disable apparmor services:
+
+sudo systemctl stop apparmor.service
+sudo systemctl disable apparmor.service
+
+Then, reboot the system and perform this command:
+ 
+systemctl status apparmor.service
+
+The status should be inactive
+
+
+-------------- EDIT THE VIRTUAL MACHINE -------------- 
+
+a) Open Virtual Machine Manager and do:
+--> Modifica --> Prefernze --> Check the "Enable XML editing" option --> Chiudi
+
+b) Open the VM created (Right clisk + Open), click on "Mostra dettagli dell'hardware virtuale" and click on the XML view.
+
+
+c) Add, after the "kernel" closing tag, the following tags:
+
+<loader type='rom'>/path/to/keystone_edit/build/bootrom.build/bootrom.bin</loader>
+<nvram>/path/to/keystone_edit/qemu/pc-bios/efi-virtio.rom</nvram>
+
+
+d) Then, replace the "emulator" tag with the following:
+
+<emulator>/path/to/keystone_edit/qemu/riscv64-softmmu/qemu-system-riscv644</emulator>
+          
+
+--> Applica 
+
+
+e) Try to run the VM, to access:
+
+buildroot login: root
+password: sifive
+
+
+
+-------------- REMOTE ATTESTATION PROJECT -------------- 
+
+************************
+Before doing it, go to /path/to/keystone_edit/
+
+open the source.h file, and copy the SDK_PATH paths into:
+
+~/.bashrc
+
+Then, restart the terminal. This will make the env variables permanently. 
+************************************
+
+git clone https://github.com/valparahiso/Remote_Attestation.git
+
+1. TO COMPILE THE ATTESTER:
+
+-------------- WOLFSSL --------------  //You can do it in the Remote_Attestation/attester folder
+git clone https://github.com/wolfSSL/wolfssl.git wolfssl
+cd wolfssl
+./autogen.sh
+
+
+***************************
+TMP, dovrò usare un altro metodo:
+./configure --host=riscv64-unknown-linux-gnu --enable-harden
+make
+
+cp -R ./certs /path/to/keystone_edit/build/buildroot.build/target/root
+cd src/.libs
+ls
+
+
+Dovrebbero esserci i file .so, tra cui libwolfssl.so.34
+
+cp libwolfssl.so.34 /path/to/keystone_edit/riscv64/sysroot/lib
+
+cd ../..
+cp -R ./wolfssl /path/to/keystone_edit/riscv64/sysroot/usr/include/
+
+
+****************************
+
+
+cd attester
+./start_server.h
+
+Then, to build the VM:
+
+cd build
+cp demo-attester.ke /path/to/keystone_edit/build/overlay/root
+rm -r /path/to/keystone_edit/build/buildroot.build/target/root/*
+cd /path/to/keystone_edit/build 
+make image
+
+Now, running the VM and using the command ls, you should be able to see the file demo-attester.ke
+
+
+TO COMPILE THE VERIFIER: 
+-------------- SQLITE -------------- 
+
+sudo apt update
+sudo apt install sqlite3
+sqlite3 –version
+sudo apt-get install libsqlite3-dev
+
+
+-------------- LIBSODIUM --------------
+
+sudo apt-get update -y
+sudo apt-get install -y libsodium-dev
+
+
+-------------- KEYSTONE ENCLAVE --------------
+1. We need to compile the keystone enclave library: 
+
+cd Remote_Attestation/verifier/keystone_build
+make 
+make keystone-verifier-lib
+sudo cp libkeystone.so /usr/lib
+
+This will generate the libkeystone.so library
+
+
+-------------- WOLFSSL --------------
+
+1. Clone the repo, can be done into the verifier folder
+
+git clone https://github.com/wolfSSL/wolfssl.git wolfssl
+cd wolfssl
+
+./autogen.sh
+
+./configure
+--enable-harden
+make
+make install
+
+cp -R ./certs /path/to/verifier/trusted_verifier
+
+
+-------------- Build verifier --------------
+cd Remote_Attestation/verifier/trusted_verifier
+make 
+
+
+This will generate, into the Remote_Attestation/verifier/build folder, the verifier.x86 file, which is the executabe of the verifier
+
+
+
+ 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+ssh-keygen -R 192.168.122.68
+scp /home/simo/Remote_Attestation/attester/wolfssl/src/.libs/libwolfssl.so.34 root@192.168.122.68:/lib
+
+
+
+Per fare 2 VM bisogna clonarne una, cambiare MAC e duplicare l'immagine (path/to/keystone_edit/build/vuild.buildroot/images rootf)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

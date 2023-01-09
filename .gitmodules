@@ -1,0 +1,15 @@
+[submodule "registrar/extern/pybind11"]
+	path = registrar/extern/pybind11
+	url = https://github.com/pybind/pybind11.git
+	branch = stable
+[submodule "registrar/extern/pybind11_json_binding"]
+	path = registrar/extern/pybind11_json_binding
+	url = https://github.com/pybind/pybind11_json.git
+
+[submodule "verifier/extern/pybind11"]
+	path = verifier/extern/pybind11
+	url = https://github.com/pybind/pybind11.git
+	branch = stable
+[submodule "verifier/extern/pybind11_json_binding"]
+	path = verifier/extern/pybind11_json_binding
+	url = https://github.com/pybind/pybind11_json.git
